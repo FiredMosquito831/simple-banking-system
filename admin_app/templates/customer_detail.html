@@ -163,8 +163,11 @@
           <label class="field"><span>First name</span><input name="first_name" value="{{ customer.first_name }}" required></label>
           <label class="field"><span>Last name</span><input name="last_name" value="{{ customer.last_name }}" required></label>
         </div>
-        <label class="field"><span>Email (login)</span><input value="{{ customer.email }}" disabled></label>
-        <label class="field"><span>Phone</span><input name="phone" value="{{ customer.phone or '' }}"></label>
+        <label class="field"><span>Email (login)</span><input type="email" name="email" value="{{ customer.email }}" required></label>
+        <div class="grid-2">
+          <label class="field"><span>Phone</span><input name="phone" value="{{ customer.phone or '' }}"></label>
+          <label class="field"><span>Date of birth</span><input type="date" name="date_of_birth" value="{{ customer.date_of_birth.isoformat() if customer.date_of_birth else '' }}"></label>
+        </div>
         <label class="field"><span>Address</span><input name="address" value="{{ customer.address or '' }}"></label>
         <button class="btn btn-primary btn-block" type="submit">Save profile</button>
       </form>

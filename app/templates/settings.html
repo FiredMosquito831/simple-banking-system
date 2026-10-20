@@ -17,6 +17,7 @@
         <label class="field"><span>Phone</span><input name="phone" value="{{ user.phone or '' }}"></label>
         <label class="field"><span>Date of birth</span><input value="{{ format_date(user.date_of_birth) if user.date_of_birth else '—' }}" disabled></label>
       </div>
+      <p class="hint">Your login email and date of birth are identity fields — contact support ({{ bank_support_email }}) to change them.</p>
       <label class="field"><span>Address</span><input name="address" value="{{ user.address or '' }}"></label>
       <button class="btn btn-primary" type="submit">Save profile</button>
     </form>

@@ -1,7 +1,7 @@
 """Dashboard, customer management and account operations."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
@@ -202,8 +202,10 @@ def update_customer(
     request: Request,
     first_name: str = Form(""),
     last_name: str = Form(""),
+    email: str = Form(""),
     phone: str = Form(""),
     address: str = Form(""),
+    date_of_birth: str = Form(""),
     _csrf: None = Depends(verify_csrf),
     admin=Depends(admin_user),
     db: Session = Depends(get_db),
@@ -212,11 +214,32 @@ def update_customer(
     if not customer:
         flash(request, "error", "Customer not found.")
         return RedirectResponse("/customers", status_code=303)
+
+    changes: list[str] = []
+    new_email = email.strip().lower()
+    if new_email and new_email != customer.email:
+        local, _, domain = new_email.partition("@")
+        if not local or "." not in domain:
+            flash(request, "error", "Enter a valid email address.")
+            return RedirectResponse(f"/customers/{customer.id}", status_code=303)
+        if db.scalar(select(Customer.id).where(Customer.email == new_email, Customer.id != customer.id)):
+            flash(request, "error", "Another customer already uses that email.")
+            return RedirectResponse(f"/customers/{customer.id}", status_code=303)
+        changes.append(f"email: {customer.email} → {new_email}")
+        customer.email = new_email
+
+    if date_of_birth.strip():
+        try:
+            customer.date_of_birth = date.fromisoformat(date_of_birth.strip())
+        except ValueError:
+            flash(request, "error", "Date of birth must be a valid date.")
+            return RedirectResponse(f"/customers/{customer.id}", status_code=303)
+
     customer.first_name = first_name.strip() or customer.first_name
     customer.last_name = last_name.strip() or customer.last_name
     customer.phone = phone.strip() or None
     customer.address = address.strip() or None
-    audit(db, admin, "admin.customer_update", "customer", customer.id, "", client_ip(request))
+    audit(db, admin, "admin.customer_update", "customer", customer.id, "; ".join(changes), client_ip(request))
     db.commit()
     flash(request, "success", "Customer profile updated.")
     return RedirectResponse(f"/customers/{customer.id}", status_code=303)

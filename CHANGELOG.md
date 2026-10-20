@@ -15,7 +15,7 @@ The console scripts became a complete two-application banking platform.
   CSV export, SQL backup, audited SQL console and audit trail.
 - Double-entry ledger with row-locked transfers, signed entries, running balances, idempotency keys
   and reversal support.
-- MySQL 8.4 schema (21 tables) managed with SQLAlchemy 2.0, plus seed script and demo data.
+- MySQL 8.4 schema (12 tables) managed with SQLAlchemy 2.0, plus seed script and demo data.
 - DB-backed settings table so rates, limits and branding change without a redeploy.
 - Maintenance mode, operator audit logging, Luhn-valid encrypted card numbers and scrypt PINs.
 - 14 unit and ledger integration tests, GitHub Actions workflow.

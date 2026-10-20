@@ -132,7 +132,7 @@ This starts MySQL, seeds the database, and runs both apps on ports 8000/8001.
          app/services/banking.py  ← single money-movement layer
          app/services/settings.py ← cached runtime configuration
                       ▼
-           SQLAlchemy 2.0  →  MySQL 8.4 (21 tables)
+           SQLAlchemy 2.0  →  MySQL 8.4 (12 tables)
 ```
 
 The operator app never edits balances directly. Adjustments, reversals and disbursements all call the
