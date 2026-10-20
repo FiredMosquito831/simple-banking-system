@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block page_title %}Open a new account{% endblock %}
+{% block page_subtitle %}Add a savings pot or another checking account.{% endblock %}
+
+{% block content %}
+<div class="split narrow">
+  <section class="panel">
+    <form method="post" action="/accounts/new" class="form">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <div class="choice-grid">
+        <label class="choice">
+          <input type="radio" name="type" value="checking" checked>
+          <span class="choice-body">
+            <span class="choice-icon">{{ icon("wallet", 20) }}</span>
+            <strong>Checking</strong>
+            <small>Everyday spending with a $500 overdraft facility.</small>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="type" value="savings">
+          <span class="choice-body">
+            <span class="choice-icon">{{ icon("bank", 20) }}</span>
+            <strong>Savings</strong>
+            <small>Earns 3.50% p.a., credited by the daily batch job.</small>
+          </span>
+        </label>
+      </div>
+      <label class="field"><span>Account label</span><input name="label" placeholder="e.g. Holiday fund"></label>
+      <label class="field"><span>Currency</span>
+        <select name="currency"><option>USD</option><option>EUR</option><option>GBP</option></select>
+      </label>
+      <button class="btn btn-primary btn-block" type="submit">Open account</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

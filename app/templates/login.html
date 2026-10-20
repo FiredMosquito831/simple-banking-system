@@ -1,0 +1,29 @@
+{% extends "_guest.html" %}
+{% block content %}
+<h1 class="auth-title">Welcome back</h1>
+<p class="auth-sub">Sign in to your Danube Bank account.</p>
+
+<form method="post" action="/login" class="form">
+  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+  <label class="field">
+    <span>Email address</span>
+    <input type="email" name="email" value="{{ email or '' }}" autocomplete="email" required autofocus>
+  </label>
+  <label class="field">
+    <span>Password</span>
+    <input type="password" name="password" autocomplete="current-password" required>
+  </label>
+  <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+</form>
+
+<div class="demo-box">
+  <p><strong>Demo accounts</strong> — password <code>{{ demo_password }}</code></p>
+  <div class="demo-users">
+    <button type="button" class="chip" data-fill-email="alex@danube.demo">alex@danube.demo · customer</button>
+    <button type="button" class="chip" data-fill-email="maria@danube.demo">maria@danube.demo · customer</button>
+    <button type="button" class="chip" data-fill-email="admin@danube.demo">admin@danube.demo · admin</button>
+  </div>
+</div>
+
+<p class="auth-switch">New here? <a href="/register">Open an account</a></p>
+{% endblock %}

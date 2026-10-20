@@ -1,0 +1,50 @@
+{% extends "_guest.html" %}
+{% block content %}
+<h1 class="auth-title">Open your account</h1>
+<p class="auth-sub">Takes a minute. You'll get a checking account with $500 to explore.</p>
+
+<form method="post" action="/register" class="form">
+  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+  <div class="grid-2">
+    <label class="field">
+      <span>First name</span>
+      <input name="first_name" value="{{ form.first_name if form else '' }}" required autofocus>
+    </label>
+    <label class="field">
+      <span>Last name</span>
+      <input name="last_name" value="{{ form.last_name if form else '' }}" required>
+    </label>
+  </div>
+  <label class="field">
+    <span>Email address</span>
+    <input type="email" name="email" value="{{ form.email if form else '' }}" autocomplete="email" required>
+  </label>
+  <div class="grid-2">
+    <label class="field">
+      <span>Phone <em>optional</em></span>
+      <input name="phone" value="{{ form.phone if form else '' }}" autocomplete="tel">
+    </label>
+    <label class="field">
+      <span>Date of birth <em>optional</em></span>
+      <input type="date" name="date_of_birth" value="{{ form.date_of_birth if form else '' }}">
+    </label>
+  </div>
+  <label class="field">
+    <span>Address <em>optional</em></span>
+    <input name="address" value="{{ form.address if form else '' }}" autocomplete="street-address">
+  </label>
+  <div class="grid-2">
+    <label class="field">
+      <span>Password</span>
+      <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+    </label>
+    <label class="field">
+      <span>Confirm password</span>
+      <input type="password" name="password_confirm" minlength="8" autocomplete="new-password" required>
+    </label>
+  </div>
+  <button class="btn btn-primary btn-block" type="submit">Create account</button>
+</form>
+
+<p class="auth-switch">Already a customer? <a href="/login">Sign in</a></p>
+{% endblock %}

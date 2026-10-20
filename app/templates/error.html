@@ -1,0 +1,13 @@
+{% extends "base.html" if user else "_guest.html" %}
+{% block page_title %}{{ status_code }} · Something went wrong{% endblock %}
+{% block content %}
+<div class="error-box">
+  <p class="error-code">{{ status_code }}</p>
+  <h1>{{ message or "We couldn't complete that request." }}</h1>
+  <p class="hint">If this keeps happening, sign out and back in, then try again.</p>
+  <div class="receipt-actions">
+    <a class="btn btn-primary" href="/dashboard">Back to dashboard</a>
+    <a class="btn btn-outline" href="/login">Sign in</a>
+  </div>
+</div>
+{% endblock %}

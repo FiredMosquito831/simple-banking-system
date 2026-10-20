@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block page_title %}Loan #{{ loan.id }}{% endblock %}
+{% block page_subtitle %}{{ loan.purpose or "Personal loan" }} · {{ loan.term_months }} months{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-ghost" href="/loans">← All loans</a>
+  {% if loan.status == 'active' %}
+    <form method="post" action="/loans/{{ loan.id }}/repay-all" data-confirm-submit="Repay the full outstanding balance now?">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <button class="btn btn-primary" type="submit">Repay in full</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Principal</span><span class="stat-value">{{ format_money(loan.principal_cents, 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Outstanding</span><span class="stat-value">{{ format_money(loan.outstanding_cents, 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Monthly payment</span><span class="stat-value">{{ format_money(loan.monthly_payment_cents, 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Rate</span><span class="stat-value">{{ (loan.annual_rate_bps / 100)|round(2) }}%</span></div>
+  <div class="stat"><span class="stat-label">Status</span><span class="stat-value"><span class="badge badge-{{ 'ok' if loan.status == 'active' else ('warn' if loan.status == 'pending' else 'muted') }}">{{ loan.status|replace('_', ' ') }}</span></span></div>
+</div>
+
+<section class="panel">
+  <div class="section-head"><h2>Amortisation schedule</h2><span class="pill">{{ loan.installments|length }} instalments</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>#</th><th>Due date</th><th class="right">Principal</th><th class="right">Interest</th><th class="right">Payment</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for inst in loan.installments %}
+          <tr>
+            <td>{{ inst.number }}</td>
+            <td class="nowrap">{{ format_date(inst.due_date) }}</td>
+            <td class="right">{{ format_money(inst.principal_cents, 'USD') }}</td>
+            <td class="right">{{ format_money(inst.interest_cents, 'USD') }}</td>
+            <td class="right"><strong>{{ format_money(inst.total_cents, 'USD') }}</strong></td>
+            <td><span class="badge badge-{{ 'ok' if inst.status == 'paid' else ('danger' if inst.status == 'overdue' else 'muted') }}">{{ inst.status }}</span></td>
+            <td class="right">
+              {% if loan.status == 'active' and inst.status != 'paid' %}
+                <form method="post" action="/loans/{{ loan.id }}/installments/{{ inst.id }}/pay" data-confirm-submit="Pay instalment {{ inst.number }}?">
+                  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                  <button class="btn btn-outline btn-sm" type="submit">Pay</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

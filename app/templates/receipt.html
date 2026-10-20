@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block page_title %}Transfer receipt{% endblock %}
+{% block page_subtitle %}Reference {{ tx.reference }}{% endblock %}
+
+{% block content %}
+<div class="split narrow">
+  <section class="panel receipt">
+    <div class="receipt-check">{{ icon("check", 26) }}</div>
+    <h2>Transfer complete</h2>
+    <p class="receipt-amount">{{ format_money(tx.amount_cents, tx.currency) }}</p>
+    <p class="receipt-sub">{{ tx.description }}</p>
+
+    <dl class="kv">
+      <div><dt>Reference</dt><dd class="mono">{{ tx.reference }}</dd></div>
+      <div><dt>Date</dt><dd>{{ format_datetime(tx.created_at) }}</dd></div>
+      <div><dt>Status</dt><dd><span class="badge badge-ok">{{ tx.status }}</span></dd></div>
+      {% if entry %}
+        <div><dt>From</dt><dd class="mono">{{ format_account(entry.account.account_number) }}</dd></div>
+        <div><dt>New balance</dt><dd>{{ format_money(entry.balance_after_cents, entry.account.currency) }}</dd></div>
+      {% endif %}
+      {% for other in tx.entries %}
+        {% if not entry or other.account_id != entry.account_id %}
+          <div><dt>To</dt><dd class="mono">{{ format_account(other.account.account_number) }}</dd></div>
+        {% endif %}
+      {% endfor %}
+    </dl>
+
+    <div class="receipt-actions">
+      <a class="btn btn-primary" href="/dashboard">Back to dashboard</a>
+      <button class="btn btn-outline" type="button" onclick="window.print()">Print</button>
+      <a class="btn btn-ghost" href="/transfer">New transfer</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Dashboard" }} · Danube Bank</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d2b45'/><path d='M8 22V10l8 6 8-6v12' stroke='%235fd6b8' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/dashboard">
+      <span class="brand-mark">{{ icon("bank", 22) }}</span>
+      <span class="brand-text">Danube<span>Bank</span></span>
+    </a>
+
+    <nav class="nav">
+      <p class="nav-label">Overview</p>
+      <a class="nav-link {{ 'active' if request.url.path == '/dashboard' }}" href="/dashboard">{{ icon("home") }} Dashboard</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/accounts') }}" href="/dashboard#accounts">{{ icon("wallet") }} Accounts</a>
+      <a class="nav-link {{ 'active' if request.url.path == '/transfer' }}" href="/transfer">{{ icon("send") }} Send money</a>
+
+      <p class="nav-label">Banking</p>
+      <a class="nav-link {{ 'active' if request.url.path == '/cards' }}" href="/cards">{{ icon("card") }} Cards</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/loans') }}" href="/loans">{{ icon("bank") }} Loans</a>
+      <a class="nav-link {{ 'active' if request.url.path == '/beneficiaries' }}" href="/beneficiaries">{{ icon("users") }} Beneficiaries</a>
+      <a class="nav-link {{ 'active' if request.url.path == '/scheduled' }}" href="/scheduled">{{ icon("calendar") }} Scheduled</a>
+
+      <p class="nav-label">You</p>
+      <a class="nav-link {{ 'active' if request.url.path == '/notifications' }}" href="/notifications">
+        {{ icon("bell") }} Notifications
+        {% if unread %}<span class="nav-badge">{{ unread }}</span>{% endif %}
+      </a>
+      <a class="nav-link {{ 'active' if request.url.path == '/settings' }}" href="/settings">{{ icon("settings") }} Settings</a>
+      {% if user and user.role == 'admin' %}
+        <a class="nav-link admin-link {{ 'active' if request.url.path.startswith('/admin') }}" href="/admin">{{ icon("shield") }} Admin console</a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <span class="avatar">{{ user.initials if user else "·" }}</span>
+        <span class="user-meta">
+          <strong>{{ user.full_name if user else "" }}</strong>
+          <small>{{ user.email if user else "" }}</small>
+        </span>
+      </div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <button class="btn btn-ghost btn-block" type="submit">{{ icon("logout") }} Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" type="button" data-toggle-sidebar aria-label="Menu">{{ icon("menu") }}</button>
+      <div class="topbar-title">
+        <h1>{% block page_title %}{{ title }}{% endblock %}</h1>
+        <p>{% block page_subtitle %}{% endblock %}</p>
+      </div>
+      <div class="topbar-actions">{% block page_actions %}{% endblock %}</div>
+    </header>
+
+    <div class="content">
+      {% if flashes %}
+        <div class="toasts">
+          {% for kind, message in flashes %}
+            <div class="toast toast-{{ kind }}">{{ icon("check" if kind == "success" else "bell", 18) }}<span>{{ message }}</span></div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

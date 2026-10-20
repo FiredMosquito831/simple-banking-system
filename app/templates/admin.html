@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block page_title %}Admin console{% endblock %}
+{% block page_subtitle %}Operations overview for Danube Bank.{% endblock %}
+{% block page_actions %}
+  <form method="post" action="/admin/run-jobs" data-confirm-submit="Run interest accrual, overdue checks and scheduled transfers?">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <button class="btn btn-primary" type="submit">{{ icon("refresh", 18) }} Run daily batch</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Customers</span><span class="stat-value">{{ stats.customers }}</span></div>
+  <div class="stat"><span class="stat-label">Accounts</span><span class="stat-value">{{ stats.accounts }}</span></div>
+  <div class="stat"><span class="stat-label">Total deposits</span><span class="stat-value">{{ format_money(stats.deposits, 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Transactions today</span><span class="stat-value">{{ stats.tx_today }}</span></div>
+</div>
+
+<div class="split">
+  <section class="panel">
+    <div class="section-head"><h2>Loan applications</h2><a class="link" href="/admin/loans">All loans</a></div>
+    {% if pending_loans %}
+      <ul class="approve-list">
+        {% for loan in pending_loans %}
+          <li>
+            <span class="payee-main">
+              <strong>{{ loan.customer.full_name }} · {{ format_money(loan.principal_cents, 'USD') }}</strong>
+              <small>{{ loan.term_months }} months · {{ (loan.annual_rate_bps / 100)|round(2) }}% · {{ loan.purpose or "no purpose given" }}</small>
+            </span>
+            <form method="post" action="/admin/loans/{{ loan.id }}/approve">
+              <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+              <button class="btn btn-success btn-sm" type="submit">Approve</button>
+            </form>
+            <form method="post" action="/admin/loans/{{ loan.id }}/reject" data-confirm-submit="Reject this application?">
+              <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+              <button class="btn btn-ghost btn-sm danger" type="submit">Reject</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty small"><p>No applications waiting.</p></div>
+    {% endif %}
+  </section>
+
+  <aside class="panel">
+    <div class="section-head"><h2>Pending KYC</h2><a class="link" href="/admin/customers">Customers</a></div>
+    {% if pending_kyc %}
+      <ul class="approve-list column">
+        {% for customer in pending_kyc %}
+          <li>
+            <span class="payee-main"><strong>{{ customer.full_name }}</strong><small>{{ customer.email }}</small></span>
+            <form method="post" action="/admin/customers/{{ customer.id }}/kyc">
+              <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+              <input type="hidden" name="decision" value="verified">
+              <button class="btn btn-outline btn-sm" type="submit">Verify</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty small"><p>No KYC reviews pending.</p></div>
+    {% endif %}
+  </aside>
+</div>
+
+<section class="panel">
+  <div class="section-head"><h2>Recent audit events</h2><a class="link" href="/admin/audit">Full trail</a></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th></tr></thead>
+      <tbody>
+        {% for log in recent_audit %}
+          <tr>
+            <td class="nowrap">{{ format_datetime(log.created_at) }}</td>
+            <td>{{ log.actor_label }}</td>
+            <td><span class="pill pill-plain">{{ log.action }}</span></td>
+            <td class="mono small-text">{{ log.entity_type }} {{ log.entity_id }}</td>
+            <td>{{ log.details|truncate(54) }}</td>
+            <td class="mono small-text">{{ log.ip or "—" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty-row">No audit events yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

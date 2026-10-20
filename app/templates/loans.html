@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block page_title %}Loans{% endblock %}
+{% block page_subtitle %}Borrow up to 50,000 with transparent fixed-rate repayments.{% endblock %}
+
+{% block content %}
+<div class="split">
+  <section class="stack">
+    <section class="panel">
+      <div class="section-head"><h2>Your loans</h2><span class="pill">{{ loans|length }}</span></div>
+      {% if loans %}
+        <ul class="loan-list">
+          {% for loan in loans %}
+            <li>
+              <span class="tx-icon {{ 'in' if loan.status == 'active' else 'out' }}">{{ icon("bank", 17) }}</span>
+              <span class="payee-main">
+                <strong>Loan #{{ loan.id }} · {{ format_money(loan.principal_cents, 'USD') }}</strong>
+                <small>{{ loan.term_months }} months · {{ (loan.annual_rate_bps / 100)|round(2) }}% · monthly {{ format_money(loan.monthly_payment_cents, 'USD') }}</small>
+                {% if loan.status == 'active' %}
+                  <small>Outstanding {{ format_money(loan.outstanding_cents, 'USD') }}</small>
+                {% endif %}
+              </span>
+              <span class="badge badge-{{ 'ok' if loan.status == 'active' else ('warn' if loan.status == 'pending' else 'muted') }}">{{ loan.status|replace('_', ' ') }}</span>
+              <a class="btn btn-ghost btn-sm" href="/loans/{{ loan.id }}">Open {{ icon("chevron-right", 14) }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty small"><p>You don't have any loans yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Apply for a loan</h2></div>
+      {% if accounts %}
+        <form method="post" action="/loans/apply" class="form" data-confirm-submit="Submit this loan application?">
+          <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+          <div class="grid-2">
+            <label class="field"><span>Amount (USD)</span>
+              <input name="amount" id="loanAmount" type="number" step="100" min="500" max="50000" value="{{ query.amount|round(0)|int }}" required>
+            </label>
+            <label class="field"><span>Term (months)</span>
+              <input name="months" id="loanMonths" type="number" step="1" min="3" max="60" value="{{ query.months }}" required>
+            </label>
+          </div>
+          <label class="field"><span>Disbursement account</span>
+            <select name="account_id" required>
+              {% for account in accounts %}
+                <option value="{{ account.id }}">{{ account.label }} · {{ format_account(account.account_number) }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field"><span>Purpose <em>optional</em></span><input name="purpose" maxlength="150" placeholder="e.g. Home renovation"></label>
+          <p class="hint">Your rate: <strong>{{ (query.rate_bps / 100)|round(2) }}% p.a.</strong> — fixed for the life of the loan. Applications are reviewed by an advisor.</p>
+          <button class="btn btn-primary btn-block" type="submit">Submit application</button>
+        </form>
+      {% else %}
+        <div class="empty small"><p>Open a checking account first to receive loan funds.</p></div>
+      {% endif %}
+    </section>
+  </section>
+
+  <aside class="panel calc">
+    <h2 class="panel-title">Repayment calculator</h2>
+    <form method="get" action="/loans" class="form compact">
+      <label class="field"><span>Amount (USD)</span><input name="amount" type="number" step="100" min="500" max="50000" value="{{ query.amount|round(0)|int }}"></label>
+      <label class="field"><span>Term (months)</span><input name="months" type="number" step="1" min="3" max="60" value="{{ query.months }}"></label>
+      <button class="btn btn-outline btn-block" type="submit">Calculate</button>
+    </form>
+    <div class="calc-result">
+      <p class="eyebrow">Monthly payment</p>
+      <p class="calc-amount">{{ format_money(quote.monthly_payment_cents, 'USD') }}</p>
+      <dl class="kv compact">
+        <div><dt>Interest rate</dt><dd>{{ (query.rate_bps / 100)|round(2) }}% p.a.</dd></div>
+        <div><dt>Total interest</dt><dd>{{ format_money(quote.total_interest_cents, 'USD') }}</dd></div>
+        <div><dt>Total repayable</dt><dd>{{ format_money(quote.total_repayable_cents, 'USD') }}</dd></div>
+      </dl>
+    </div>
+  </aside>
+</div>
+{% endblock %}

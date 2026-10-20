@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block page_title %}Good to see you, {{ user.first_name }}{% endblock %}
+{% block page_subtitle %}Here's what's happening across your accounts today.{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-primary" href="/transfer">{{ icon("send", 18) }} Send money</a>
+  <a class="btn btn-outline" href="/accounts/new">{{ icon("plus", 18) }} New account</a>
+{% endblock %}
+
+{% block content %}
+<div class="dash-grid">
+  <section class="panel hero">
+    <div class="hero-top">
+      <div>
+        <p class="eyebrow">Total balance</p>
+        <p class="hero-amount">{{ format_money(total, currency) }}</p>
+        <p class="hero-sub">{{ accounts|length }} account{{ '' if accounts|length == 1 else 's' }} · {{ currency }}</p>
+      </div>
+      <div class="hero-flows">
+        <span class="flow flow-in">{{ icon("arrow-down", 15) }} {{ format_money(inflow, currency) }} in</span>
+        <span class="flow flow-out">{{ icon("arrow-up", 15) }} {{ format_money(outflow, currency) }} out</span>
+        <span class="flow-muted">last 30 days</span>
+      </div>
+    </div>
+
+    {% if series and series|length > 1 %}
+      {% set vals = series | map(attribute='value') | list %}
+      <div class="chart">
+        <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="Balance over the last 14 days">
+          <defs>
+            <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5fd6b8" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#5fd6b8" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="{{ spark_area(vals) }}" fill="url(#areaFill)"/>
+          <polyline points="{{ spark_points(vals) }}" fill="none" stroke="#5fd6b8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <div class="chart-axis">
+          <span>{{ series[0].date.strftime('%d %b') }}</span>
+          <span>{{ series[-1].date.strftime('%d %b') }}</span>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <aside class="panel side-panel">
+    <h2 class="panel-title">Quick actions</h2>
+    <div class="quick-grid">
+      <a class="quick" href="/transfer">{{ icon("send", 20) }}<span>Send</span></a>
+      <a class="quick" href="/cards">{{ icon("card", 20) }}<span>Cards</span></a>
+      <a class="quick" href="/loans">{{ icon("bank", 20) }}<span>Loans</span></a>
+      <a class="quick" href="/scheduled">{{ icon("calendar", 20) }}<span>Schedule</span></a>
+    </div>
+    {% if spending %}
+      <h2 class="panel-title spaced">Spending · 30 days</h2>
+      <ul class="bars">
+        {% for row in spending %}
+          <li>
+            <div class="bar-label"><span>{{ row.label }}</span><strong>{{ format_money(row.cents, currency) }}</strong></div>
+            <div class="bar-track"><span style="width: {{ row.pct }}%"></span></div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </aside>
+</div>
+
+<section id="accounts" class="section">
+  <div class="section-head">
+    <h2>Your accounts</h2>
+    <a class="link" href="/accounts/new">Open another {{ icon("chevron-right", 14) }}</a>
+  </div>
+  <div class="account-grid">
+    {% for account in accounts %}
+      <a class="account-card {{ 'savings' if account.type == 'savings' }}" href="/accounts/{{ account.id }}">
+        <div class="account-top">
+          <span class="account-type">{{ icon("wallet", 18) }} {{ account.label }}</span>
+          {% if account.status != 'active' %}<span class="badge badge-warn">{{ account.status }}</span>{% endif %}
+        </div>
+        <p class="account-balance">{{ format_money(account.balance_cents, account.currency) }}</p>
+        <p class="account-number">{{ format_account(account.account_number) }}</p>
+        <div class="account-foot">
+          <span>{{ account.type|capitalize }}{% if account.interest_rate_bps %} · {{ (account.interest_rate_bps / 100)|round(2) }}% p.a.{% endif %}</span>
+          <span class="link-inline">Details {{ icon("chevron-right", 14) }}</span>
+        </div>
+      </a>
+    {% else %}
+      <div class="empty">
+        <p>No accounts yet.</p>
+        <a class="btn btn-primary" href="/accounts/new">Open your first account</a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="dash-grid">
+  <section class="panel">
+    <div class="section-head">
+      <h2>Recent activity</h2>
+      <a class="link" href="/accounts/{{ accounts[0].id if accounts else '#' }}">View all</a>
+    </div>
+    <ul class="tx-list">
+      {% for row in recent %}
+        <li class="tx-row">
+          <span class="tx-icon {{ row.direction }}">
+            {% if row.transaction.type == 'card_payment' %}{{ icon("card", 17) }}
+            {% elif row.transaction.type in ('loan_disbursement', 'deposit', 'interest') %}{{ icon("arrow-down", 17) }}
+            {% elif row.transaction.type == 'loan_repayment' %}{{ icon("bank", 17) }}
+            {% else %}{{ icon("arrow-up" if row.direction == 'out' else "arrow-down", 17) }}{% endif %}
+          </span>
+          <span class="tx-main">
+            <strong>{{ row.counterparty }}</strong>
+            <small>{{ row.transaction.description|truncate(46) }} · {{ ago(row.transaction.created_at) }}</small>
+          </span>
+          <span class="tx-amount {{ row.direction }}">{{ format_money(row.signed, row.transaction.currency, signed=True) }}</span>
+        </li>
+      {% else %}
+        <li class="empty-row">No transactions yet — move some money to see activity here.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <div class="section-head">
+        <h2>Cards</h2>
+        <a class="link" href="/cards">Manage</a>
+      </div>
+      {% if cards %}
+        {% set card = cards[0] %}
+        <div class="mini-card {{ 'frozen' if card.status == 'frozen' }}">
+          <div class="mini-card-top"><span>Danube Debit</span><span>VISA</span></div>
+          <p class="mini-card-number">{{ card.masked }}</p>
+          <div class="mini-card-foot"><span>{{ user.full_name }}</span><span>{{ card.expiry }}</span></div>
+        </div>
+        <p class="hint">{{ cards|length }} active card{{ '' if cards|length == 1 else 's' }} · {{ format_money(card.daily_limit_cents, 'USD') }} daily limit</p>
+      {% else %}
+        <div class="empty small">
+          <p>No cards yet.</p>
+          <a class="btn btn-outline" href="/cards">Issue a card</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <h2>Loans</h2>
+        <a class="link" href="/loans">All loans</a>
+      </div>
+      {% if loans %}
+        {% for loan in loans %}
+          <div class="loan-row">
+            <div>
+              <strong>{{ format_money(loan.principal_cents, 'USD') }}</strong>
+              <small>{{ loan.term_months }} months · {{ (loan.annual_rate_bps / 100)|round(2) }}%</small>
+            </div>
+            <span class="badge badge-{{ 'warn' if loan.status == 'pending' else 'ok' }}">{{ loan.status|replace('_', ' ') }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty small">
+          <p>No active loans.</p>
+          <a class="btn btn-outline" href="/loans">Check rates</a>
+        </div>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}
