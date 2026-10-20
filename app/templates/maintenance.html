@@ -1,0 +1,13 @@
+{% extends "_guest.html" %}
+{% block content %}
+<div class="error-box">
+  <div class="empty-icon">{{ icon("clock", 30) }}</div>
+  <h1>We're doing scheduled maintenance</h1>
+  <p class="hint">{{ bank_name }} online banking is temporarily unavailable while we upgrade the platform.
+    Please try again in a few minutes. Cards and transfers are paused during this window.</p>
+  <p class="hint">Need help? Email <a class="link" href="mailto:{{ bank_support_email }}">{{ bank_support_email }}</a></p>
+  <div class="receipt-actions">
+    <a class="btn btn-primary" href="/login">Try signing in</a>
+  </div>
+</div>
+{% endblock %}

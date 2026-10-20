@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — Danube Bank banking system</title>
+  <meta name="description" content="Complete documentation for the Danube Bank open-source banking system: installation, configuration, architecture, double-entry ledger, customer and admin apps, database operations, API endpoints and deployment.">
+  <meta name="keywords" content="banking system documentation, FastAPI banking setup, MySQL ledger schema, admin banking console, double-entry accounting Python">
+  <link rel="canonical" href="https://bankingsystem.danubelabs.net/docs.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="site.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Danube Bank documentation">
+  <meta property="og:description" content="Installation, architecture, ledger design, operations and deployment for the Danube Bank banking system.">
+  <meta property="og:url" content="https://bankingsystem.danubelabs.net/docs.html">
+  <meta property="og:image" content="https://bankingsystem.danubelabs.net/og-image.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-6 9 6"/><path d="M4 9v11h16V9"/><path d="M8 20v-6h8v6"/></svg></span>Danube<span class="accent">Bank</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#preview">Preview</a>
+      <a href="admin.html">Admin app</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-outline" href="https://github.com/FiredMosquito831/simple-banking-system" rel="noopener">GitHub</a>
+      <a class="btn btn-primary" href="index.html#quickstart">Run it</a>
+    </div>
+  </div>
+</header>
+
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <span class="group">Getting started</span>
+    <a href="#overview">Overview</a>
+    <a href="#quickstart">Quick start</a>
+    <a href="#configuration">Configuration</a>
+    <span class="group">Design</span>
+    <a href="#architecture">Architecture</a>
+    <a href="#ledger">Ledger</a>
+    <a href="#security">Security</a>
+    <span class="group">Features</span>
+    <a href="#accounts">Accounts &amp; transfers</a>
+    <a href="#cards">Cards</a>
+    <a href="#loans">Loans</a>
+    <a href="#operations">Operator app</a>
+    <a href="#database">Database tools</a>
+    <span class="group">Reference</span>
+    <a href="#api">Endpoints</a>
+    <a href="#testing">Testing</a>
+    <a href="#deployment">Deployment</a>
+    <a href="#troubleshooting">Troubleshooting</a>
+  </nav>
+
+  <article class="doc-body">
+    <h1>Documentation</h1>
+    <p>Everything needed to install, understand, operate and extend the Danube Bank banking system.</p>
+    <div class="callout-box"><strong>Demo software.</strong> No real money, card network connectivity or KYC provider is involved. Card numbers are generated locally and accounts are seeded with fictitious balances.</div>
+
+    <h2 id="overview">Overview</h2>
+    <p>Danube Bank is a two-application system sharing one MySQL database:</p>
+    <ul>
+      <li><strong>Customer app</strong> (<code>app/</code>, port 8000) — online banking for customers.</li>
+      <li><strong>Operator app</strong> (<code>admin_app/</code>, port 8001, “Danube Ops”) — bank management, including live database tools.</li>
+    </ul>
+    <p>Both import the same ORM models and the same banking service layer, so there is exactly one implementation of money movement. The operator app uses the same ledger functions rather than editing balances directly.</p>
+    <table>
+      <tr><th>Layer</th><th>Technology</th></tr>
+      <tr><td>Web framework</td><td>FastAPI + Starlette</td></tr>
+      <tr><td>ORM</td><td>SQLAlchemy 2.0 (typed mappings)</td></tr>
+      <tr><td>Database</td><td>MySQL 8.4 in Docker (utf8mb4)</td></tr>
+      <tr><td>Templates</td><td>Jinja2, server-rendered</td></tr>
+      <tr><td>Sessions</td><td>Signed cookies (`SessionMiddleware`)</td></tr>
+      <tr><td>Hashing / crypto</td><td>scrypt (stdlib), Fernet (cryptography)</td></tr>
+      <tr><td>Tests</td><td>pytest, 14 unit + ledger integration tests</td></tr>
+    </table>
+
+    <h2 id="quickstart">Quick start</h2>
+    <p>Requirements: Docker Desktop and Python 3.11+.</p>
+    <pre><code>docker compose up -d
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+cp .env.example .env
+python -m scripts.seed
+uvicorn app.main:app --reload
+uvicorn admin_app.main:app --port 8001</code></pre>
+    <p>Open <code>http://127.0.0.1:8000</code> for customers and <code>http://127.0.0.1:8001</code> for operators.</p>
+    <table>
+      <tr><th>Email</th><th>Password</th><th>Access</th></tr>
+      <tr><td><code>alex@danube.demo</code></td><td><code>Password123!</code></td><td>Customer with accounts, card and loan</td></tr>
+      <tr><td><code>maria@danube.demo</code></td><td><code>Password123!</code></td><td>Customer, KYC pending</td></tr>
+      <tr><td><code>andrei@danube.demo</code></td><td><code>Password123!</code></td><td>Customer, useful transfer target</td></tr>
+      <tr><td><code>admin@danube.demo</code></td><td><code>Password123!</code></td><td>Operator / admin</td></tr>
+    </table>
+    <p>Reset the database at any time with <code>python -m scripts.seed --reset</code>.</p>
+
+    <h2 id="configuration">Configuration</h2>
+    <h3>Environment (<code>.env</code>)</h3>
+    <table>
+      <tr><th>Variable</th><th>Purpose</th></tr>
+      <tr><td><code>SECRET_KEY</code></td><td>Signs session cookies and derives the card-encryption key</td></tr>
+      <tr><td><code>DATABASE_URL</code></td><td>SQLAlchemy URL, default <code>mysql+pymysql://banker:bankerpass@127.0.0.1:3306/banking</code></td></tr>
+      <tr><td><code>DEMO_PASSWORD</code></td><td>Password assigned to seeded demo users</td></tr>
+      <tr><td><code>ALLOW_ADMIN_SQL_WRITE</code></td><td><code>1</code> enables INSERT/UPDATE/DELETE in the operator SQL console</td></tr>
+    </table>
+    <h3>Runtime settings (MySQL)</h3>
+    <p>Institution name, support email, currency, transfer and cash limits, overdraft, savings interest,
+       card limits, loan rates and limits, maintenance mode and demo-login visibility all live in the
+       <code>settings</code> table. Operators edit them in <strong>Settings</strong>; both apps refresh their
+       cache every 10 seconds. Changes are audited individually.</p>
+
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>app/
+  main.py            customer app entrypoint and maintenance gate
+  models.py          customers, accounts, cards, ledger, loans, settings, audit
+  security.py        scrypt hashing, Luhn, Fernet-encrypted PANs
+  deps.py            auth, CSRF, template rendering
+  routers/           auth, accounts, transfers, cards, loans, admin (customer-side)
+  services/banking.py   the only code that moves money
+  services/settings.py  cached DB settings
+  services/queries.py   read models for dashboards and statements
+  templates/ static/
+admin_app/
+  main.py            operator app entrypoint (port 8001)
+  auth.py            operator login (role=admin)
+  views.py           dashboard, customers, accounts
+  banking_ops.py     transactions, reversals, cards, loans
+  system.py          settings, DB explorer, SQL console, backups, audit
+  templates/ static/
+scripts/seed.py      schema, settings defaults, demo data
+docs/                this GitHub Pages site
+tests/               unit and ledger integration tests</code></pre>
+
+    <h2 id="ledger">Ledger design</h2>
+    <p>Money is stored in integer cents. A transaction is a header row; each account touched gets a
+       <code>ledger_entries</code> row with the signed amount and the resulting balance.</p>
+    <pre><code>Transaction  TXN-8F2A…   transfer   250.00 USD
+ ├─ LedgerEntry  account A   −25000   balance_after 175000
+ └─ LedgerEntry  account B   +25000   balance_after  25000</code></pre>
+    <ul>
+      <li><code>post_transaction()</code> locks every involved account with <code>SELECT … FOR UPDATE</code>, ordered by id to avoid deadlocks.</li>
+      <li>It validates account status, currency, and available funds (balance + overdraft) before writing.</li>
+      <li>Multi-entry transactions must sum to zero. Single-sided entries represent the bank's external position for deposits, withdrawals, interest and card payments.</li>
+      <li>Idempotency keys are supported and unique, so retried requests cannot double-charge.</li>
+      <li>Reversal posts the mirror entries and marks the original <code>reversed</code>; nothing is deleted.</li>
+    </ul>
+
+    <h2 id="security">Security model</h2>
+    <ul>
+      <li>Passwords and card PINs use scrypt with per-secret salts; comparisons are constant-time.</li>
+      <li>Card PANs are Fernet-encrypted; lists only ever show the last four digits. Reveal is a separate audited request and can be disabled in Settings.</li>
+      <li>Every mutating form carries a CSRF token bound to the session.</li>
+      <li>Customers can only read or move money on accounts they own; ownership is checked server-side on every route.</li>
+      <li>The operator app has its own cookie name and signing key, and refuses non-admin accounts.</li>
+      <li>All operator actions are appended to <code>audit_logs</code> with actor, IP and detail.</li>
+    </ul>
+    <div class="callout-box warn">This is a demo. There is no TLS termination, MFA, distributed rate limiting, email verification or real KYC integration. Do not use it to handle real money.</div>
+
+    <h2 id="accounts">Accounts, transfers and statements</h2>
+    <p>Customers can hold up to the configured number of open accounts. Checking accounts carry an
+       overdraft facility; savings accounts accrue interest through the daily batch job.</p>
+    <p>Transfers are local (same bank, same currency). The recipient account is resolved by account
+       number, validated, and both accounts post in one database transaction. Receipts are addressable by
+       reference, CSV exports and printable statements are generated from ledger entries.</p>
+    <p>Standing orders support daily, weekly and monthly frequencies. When the batch job runs, due plans
+       execute; if funds are insufficient the plan is paused and the customer is notified.</p>
+
+    <h2 id="cards">Cards</h2>
+    <p>Cards use the demo BIN <code>400000</code> and a Luhn check digit. Issuing generates a 4-digit PIN
+       unless one is supplied. Daily limits are enforced per card and reset automatically on the next day.
+       Operators can freeze, cancel, change limits and reset PINs from either app.</p>
+
+    <h2 id="loans">Loans</h2>
+    <p>Loan pricing is a base rate with discounts for verified KYC and larger amounts, all configurable in
+       Settings. Approval creates an annuity amortisation schedule, disburses principal to the chosen
+       account and marks instalments paid as they are repaid. Early repayment closes the loan immediately.</p>
+
+    <h2 id="operations">Operator app (Danube Ops)</h2>
+    <p>Sign in at <code>http://127.0.0.1:8001</code> with an account whose role is <code>admin</code>.</p>
+    <ul>
+      <li><strong>Customers</strong> — create, edit, lock/unlock, change role, reset password, set KYC.</li>
+      <li><strong>Accounts</strong> — open accounts, freeze/activate/close, post audited credit or debit adjustments.</li>
+      <li><strong>Transactions</strong> — search the ledger, inspect entries per account, reverse a completed transaction with a reason.</li>
+      <li><strong>Cards</strong> — issue, reveal, freeze, cancel, set limits, reset PIN.</li>
+      <li><strong>Loans</strong> — approve, reject, or book and disburse a loan on behalf of a customer.</li>
+      <li><strong>Settings</strong> — edit every runtime business rule.</li>
+      <li><strong>Audit</strong> — search every operator and system event.</li>
+    </ul>
+
+    <h2 id="database">Database tools</h2>
+    <p>The operator app includes a real database explorer:</p>
+    <ul>
+      <li><strong>Browse</strong> any table with sorting and pagination.</li>
+      <li><strong>Export</strong> any table to CSV.</li>
+      <li><strong>Backup</strong> streams a full SQL dump (<code>CREATE TABLE</code> + <code>INSERT</code>) with foreign-key checks disabled.</li>
+      <li><strong>SQL console</strong> — SELECT always allowed; INSERT/UPDATE/DELETE only when <code>ALLOW_ADMIN_SQL_WRITE=1</code>; DROP/TRUNCATE/ALTER/CREATE/GRANT always blocked. Every statement is audited.</li>
+    </ul>
+
+    <h2 id="api">HTTP endpoints</h2>
+    <p>The customer app is server-rendered, so most routes return HTML. This table lists the route groups.</p>
+    <table>
+      <tr><th>Customer app (:8000)</th><th>Purpose</th></tr>
+      <tr><td><code>GET /health</code></td><td>JSON health check</td></tr>
+      <tr><td><code>GET/POST /login</code>, <code>/register</code></td><td>Authentication</td></tr>
+      <tr><td><code>GET /dashboard</code></td><td>Balances, chart, recent activity</td></tr>
+      <tr><td><code>GET /accounts/{id}</code>, <code>/statement</code>, <code>/export.csv</code></td><td>Account detail and exports</td></tr>
+      <tr><td><code>POST /accounts/{id}/deposit|withdraw</code></td><td>Cash movements</td></tr>
+      <tr><td><code>GET/POST /transfer</code>, <code>GET /receipt/{ref}</code></td><td>Transfers and receipts</td></tr>
+      <tr><td><code>GET/POST /beneficiaries</code>, <code>/scheduled</code></td><td>Payees and standing orders</td></tr>
+      <tr><td><code>GET/POST /cards</code>, <code>POST /cards/{id}/…</code></td><td>Card lifecycle</td></tr>
+      <tr><td><code>GET/POST /loans</code>, <code>POST /loans/{id}/…</code></td><td>Loans and repayment</td></tr>
+      <tr><td><code>GET /admin/…</code></td><td>Basic admin pages for role=admin</td></tr>
+      <tr><td><code>GET /api/docs</code></td><td>OpenAPI documentation (FastAPI)</td></tr>
+    </table>
+    <table>
+      <tr><th>Operator app (:8001)</th><th>Purpose</th></tr>
+      <tr><td><code>GET /health</code></td><td>JSON health check</td></tr>
+      <tr><td><code>GET /customers</code>, <code>/customers/{id}</code></td><td>Customer management</td></tr>
+      <tr><td><code>GET /accounts</code>, <code>/accounts/{id}</code></td><td>Account management and adjustments</td></tr>
+      <tr><td><code>GET /transactions</code>, <code>/transactions/{ref}</code></td><td>Ledger inspection and reversal</td></tr>
+      <tr><td><code>GET /cards</code>, <code>/loans</code></td><td>Card and loan operations</td></tr>
+      <tr><td><code>GET/POST /settings</code></td><td>Runtime configuration</td></tr>
+      <tr><td><code>GET /database</code>, <code>/database/{table}</code>, <code>/database/backup.sql</code></td><td>Database explorer and backup</td></tr>
+      <tr><td><code>GET/POST /sql</code></td><td>Audited SQL console</td></tr>
+      <tr><td><code>GET /audit</code></td><td>Audit trail</td></tr>
+    </table>
+
+    <h2 id="testing">Testing</h2>
+    <pre><code>pytest</code></pre>
+    <p>Unit tests cover Luhn generation, scrypt hashing, annuity maths and money formatting. Ledger tests
+       run against MySQL, verify balanced entries, overdraft limits, ownership checks and idempotency,
+       then roll back so they leave no data behind. If MySQL is not reachable they skip.</p>
+
+    <h2 id="deployment">Deployment</h2>
+    <p>For a shared environment:</p>
+    <ul>
+      <li>Set a strong <code>SECRET_KEY</code> and change every database password.</li>
+      <li>Run behind a TLS-terminating reverse proxy (Caddy, nginx, Cloudflare Tunnel).</li>
+      <li>Set <code>https_only=True</code> on both session middlewares.</li>
+      <li>Disable the demo login shortcuts and card reveal in Settings.</li>
+      <li>Schedule <code>POST /admin/run-jobs</code> (customer app) or use the operator app to run daily accruals.</li>
+      <li>Keep MySQL on a private network and back it up using the operator backup endpoint or <code>mysqldump</code>.</li>
+    </ul>
+    <p>This documentation site is published with GitHub Pages from <code>docs/</code> and served at
+       <code>bankingsystem.danubelabs.net</code>.</p>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+    <table>
+      <tr><th>Symptom</th><th>Fix</th></tr>
+      <tr><td><code>Can't connect to MySQL</code></td><td><code>docker compose ps</code> — wait for the healthcheck, then rerun.</td></tr>
+      <tr><td>Login says password is wrong</td><td>Reseed: <code>python -m scripts.seed --reset</code>.</td></tr>
+      <tr><td>404 on <code>/accounts/new</code></td><td>Ensure dynamic <code>/accounts/{id}</code> routes are declared after static ones.</td></tr>
+      <tr><td>Settings changes not visible</td><td>Wait 10 seconds for the cache refresh, then reload.</td></tr>
+      <tr><td>Card reveal disabled</td><td>Enable it under Settings → Security.</td></tr>
+    </table>
+
+    <div class="cta" style="margin-top:56px">
+      <h2>Questions or ideas?</h2>
+      <p>Open an issue on GitHub — the project is meant to be read and extended.</p>
+      <div class="hero-actions"><a class="btn btn-mint" href="https://github.com/FiredMosquito831/simple-banking-system" rel="noopener">Go to repository</a></div>
+    </div>
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom" style="border:0;padding:0">
+      <span>© <span id="year">2026</span> Danube Labs · Demo environment, no real funds.</span>
+      <span><a href="index.html">Home</a> · <a href="admin.html">Admin app</a> · <a href="sitemap.xml">Sitemap</a></span>
+    </div>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

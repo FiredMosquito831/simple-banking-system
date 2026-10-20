@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Welcome" }} · {{ bank_name }}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d2b45'/><path d='M8 22V10l8 6 8-6v12' stroke='%235fd6b8' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="guest-body">
+  <main class="guest">
+    <section class="guest-art">
+      <div class="brand brand-lg">
+        <span class="brand-mark">{{ icon("bank", 24) }}</span>
+        <span class="brand-text">{{ bank_lead }}<span>{{ bank_tail }}</span></span>
+      </div>
+      <div class="guest-copy">
+        <h2>Banking that feels<br>effortless.</h2>
+        <p>Move money in seconds, manage cards, borrow and repay — all in one clean workspace. A full-featured demo running on MySQL.</p>
+        <ul class="guest-points">
+          <li>{{ icon("check", 16) }} Instant transfers with double-entry ledger</li>
+          <li>{{ icon("check", 16) }} Virtual cards with freeze &amp; daily limits</li>
+          <li>{{ icon("check", 16) }} Loans with real amortisation schedules</li>
+        </ul>
+      </div>
+      <p class="guest-foot">Demo environment · no real money is moved.</p>
+    </section>
+
+    <section class="guest-panel">
+      <div class="guest-card">
+        {% if flashes %}
+          {% for kind, message in flashes %}
+            <div class="toast toast-{{ kind }}">{{ icon("check" if kind == "success" else "bell", 18) }}<span>{{ message }}</span></div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

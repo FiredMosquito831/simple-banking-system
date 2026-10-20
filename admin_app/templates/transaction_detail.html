@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block page_title %}{{ tx.reference }}{% endblock %}
+{% block page_subtitle %}{{ tx.type|replace('_', ' ')|title }} · {{ format_datetime(tx.created_at) }}{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-ghost" href="/transactions">← Transactions</a>
+  {% if tx.status == 'completed' and tx.type != 'reversal' and not reversal %}
+    <button class="btn btn-outline danger" type="button" data-toggle-panel="reverse-panel">{{ icon("refresh", 18) }} Reverse</button>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Amount</span><span class="stat-value">{{ format_money(tx.amount_cents, tx.currency) }}</span></div>
+  <div class="stat"><span class="stat-label">Status</span><span class="stat-value"><span class="badge badge-{{ 'ok' if tx.status == 'completed' else ('danger' if tx.status == 'reversed' else 'warn') }}">{{ tx.status }}</span></span></div>
+  <div class="stat"><span class="stat-label">Currency</span><span class="stat-value">{{ tx.currency }}</span></div>
+  <div class="stat"><span class="stat-label">Entries</span><span class="stat-value">{{ tx.entries|length }}</span></div>
+</div>
+
+{% if reversal %}
+  <div class="panel" style="margin-bottom:18px">
+    <div class="callout" style="margin:0">
+      {{ icon("refresh", 18) }}
+      <p>This transaction was reversed by <a class="link mono" href="/transactions/{{ reversal.reference }}">{{ reversal.reference }}</a>.</p>
+    </div>
+  </div>
+{% endif %}
+
+<section class="panel" id="reverse-panel" hidden>
+  <div class="section-head"><h2>Reverse transaction</h2></div>
+  <form method="post" action="/transactions/{{ tx.reference }}/reverse" class="form" data-confirm-submit="Post the reversing entry for {{ tx.reference }}?">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <label class="field"><span>Reason</span><input name="reason" required placeholder="Why is this being reversed?"></label>
+    <p class="hint">A new <code>reversal</code> transaction mirrors every ledger entry. The original is marked reversed; nothing is deleted.</p>
+    <button class="btn btn-primary" type="submit">Post reversal</button>
+  </form>
+</section>
+
+<div class="detail-grid">
+  <section class="panel">
+    <div class="section-head"><h2>Ledger entries</h2></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Account</th><th>Owner</th><th class="right">Amount</th><th class="right">Balance after</th><th>When</th></tr></thead>
+        <tbody>
+          {% for entry in tx.entries %}
+            <tr>
+              <td><a class="link mono" href="/accounts/{{ entry.account_id }}">{{ format_account(entry.account.account_number) if entry.account else entry.account_id }}</a></td>
+              <td>{{ entry.account.customer.full_name if entry.account and entry.account.customer else '—' }}</td>
+              <td class="right {{ 'amount-in' if entry.amount_cents > 0 else 'amount-out' }}">{{ format_money(entry.amount_cents, tx.currency, signed=True) }}</td>
+              <td class="right">{{ format_money(entry.balance_after_cents, tx.currency) }}</td>
+              <td class="nowrap">{{ format_datetime(entry.created_at) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="empty-row">No entries.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <h2 class="panel-title">Transaction data</h2>
+    <dl class="kv compact">
+      <div><dt>Reference</dt><dd class="mono">{{ tx.reference }}</dd></div>
+      <div><dt>Type</dt><dd>{{ tx.type }}</dd></div>
+      <div><dt>Status</dt><dd>{{ tx.status }}</dd></div>
+      <div><dt>Description</dt><dd>{{ tx.description or '—' }}</dd></div>
+      <div><dt>Initiated by</dt><dd>{{ tx.initiated_by or 'system' }}</dd></div>
+      <div><dt>Idempotency key</dt><dd class="mono small-text">{{ tx.idempotency_key or '—' }}</dd></div>
+      <div><dt>Reversal of</dt><dd class="mono small-text">{{ tx.reversal_of_id or '—' }}</dd></div>
+      <div><dt>Created</dt><dd>{{ format_datetime(tx.created_at) }}</dd></div>
+    </dl>
+  </aside>
+</div>
+{% endblock %}

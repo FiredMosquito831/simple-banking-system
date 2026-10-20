@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block page_title %}Scheduled payments{% endblock %}
+{% block page_subtitle %}Standing orders run automatically when the batch job executes.{% endblock %}
+
+{% block content %}
+<div class="split">
+  <section class="panel">
+    <div class="section-head"><h2>Your standing orders</h2><span class="pill">{{ plans|length }}</span></div>
+    {% if plans %}
+      <ul class="plan-list">
+        {% for plan in plans %}
+          <li>
+            <span class="tx-icon out">{{ icon("calendar", 17) }}</span>
+            <span class="payee-main">
+              <strong>{{ plan.to_name }} · {{ format_money(plan.amount_cents, 'USD') }}</strong>
+              <small>{{ plan.frequency|capitalize }} · next run {{ format_datetime(plan.next_run_at) }}</small>
+            </span>
+            <span class="badge badge-{{ 'ok' if plan.status == 'active' else 'warn' }}">{{ plan.status }}</span>
+            {% if plan.status == 'active' %}
+              <form method="post" action="/scheduled/{{ plan.id }}/pause">
+                <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                <button class="btn btn-ghost btn-sm" type="submit">Pause</button>
+              </form>
+            {% elif plan.status == 'paused' %}
+              <form method="post" action="/scheduled/{{ plan.id }}/resume">
+                <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                <button class="btn btn-ghost btn-sm" type="submit">Resume</button>
+              </form>
+            {% endif %}
+            {% if plan.status in ('active', 'paused') %}
+              <form method="post" action="/scheduled/{{ plan.id }}/cancel" data-confirm-submit="Cancel this standing order?">
+                <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                <button class="icon-btn danger" type="submit" title="Cancel">{{ icon("trash", 17) }}</button>
+              </form>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty small"><p>No standing orders yet.</p></div>
+    {% endif %}
+  </section>
+
+  <aside class="panel">
+    <h2 class="panel-title">New standing order</h2>
+    <form method="post" action="/scheduled" class="form">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <label class="field"><span>From account</span>
+        <select name="from_account_id" required>
+          {% for account in accounts %}
+            <option value="{{ account.id }}">{{ account.label }} — {{ format_money(account.balance_cents, account.currency) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field"><span>To account number</span>
+        <input name="to_account_number" list="payees" required placeholder="DANB…">
+        <datalist id="payees">
+          {% for payee in payees %}<option value="{{ payee.account_number }}">{{ payee.name }}</option>{% endfor %}
+        </datalist>
+      </label>
+      <label class="field"><span>Recipient name</span><input name="to_name" placeholder="Optional — resolved automatically"></label>
+      <div class="grid-2">
+        <label class="field"><span>Amount</span><input name="amount" type="number" step="0.01" min="0.01" required></label>
+        <label class="field"><span>Frequency</span>
+          <select name="frequency">
+            {% for f in frequencies %}<option value="{{ f }}">{{ f|capitalize }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <label class="field"><span>Reference <em>optional</em></span><input name="description"></label>
+      <button class="btn btn-primary btn-block" type="submit">{{ icon("calendar", 16) }} Create schedule</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "_guest.html" %}
+{% block content %}
+<h1 class="auth-title">Welcome back</h1>
+<p class="auth-sub">Sign in to your {{ bank_name }} account.</p>
+
+<form method="post" action="/login" class="form">
+  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+  <label class="field">
+    <span>Email address</span>
+    <input type="email" name="email" value="{{ email or '' }}" autocomplete="email" required autofocus>
+  </label>
+  <label class="field">
+    <span>Password</span>
+    <input type="password" name="password" autocomplete="current-password" required>
+  </label>
+  <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+</form>
+
+{% if demo_users %}
+  <div class="demo-box">
+    <p><strong>Demo accounts</strong> — password <code>{{ demo_password }}</code></p>
+    <div class="demo-users">
+      {% for demo in demo_users %}
+        <button type="button" class="chip" data-fill-email="{{ demo.email }}">{{ demo.email }} · {{ demo.role }}</button>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<p class="auth-switch">New here? <a href="/register">Open an account</a></p>
+{% endblock %}

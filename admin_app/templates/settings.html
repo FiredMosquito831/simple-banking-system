@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_title %}Institution settings{% endblock %}
+{% block page_subtitle %}Runtime configuration — stored in MySQL, applied across both apps within seconds.{% endblock %}
+
+{% block content %}
+<form method="post" action="/settings" class="form">
+  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+
+  <div class="detail-grid">
+    {% for category, rows in groups.items() %}
+      <section class="panel">
+        <div class="section-head"><h2>{{ category }}</h2><span class="pill">{{ rows|length }}</span></div>
+        {% for row in rows %}
+          <label class="field" style="margin-bottom:12px">
+            <span>{{ row.label or row.key }} <em class="mono">{{ row.key }}</em></span>
+            {% if row.value_type == 'bool' %}
+              <select name="setting.{{ row.key }}">
+                <option value="true" {{ 'selected' if row.value == 'true' }}>Enabled</option>
+                <option value="false" {{ 'selected' if row.value == 'false' }}>Disabled</option>
+              </select>
+            {% elif row.value_type == 'int' %}
+              <input name="setting.{{ row.key }}" type="number" step="1" value="{{ row.value }}">
+            {% elif row.value_type == 'email' %}
+              <input name="setting.{{ row.key }}" type="email" value="{{ row.value }}">
+            {% else %}
+              <input name="setting.{{ row.key }}" value="{{ row.value }}">
+            {% endif %}
+          </label>
+        {% endfor %}
+      </section>
+    {% endfor %}
+  </div>
+
+  <div class="panel" style="position:sticky; bottom:16px; display:flex; gap:12px; align-items:center; justify-content:space-between">
+    <p class="hint" style="margin:0">Changes are audited and picked up by the customer app within 10 seconds.</p>
+    <button class="btn btn-primary" type="submit">{{ icon("check", 16) }} Save settings</button>
+  </div>
+</form>
+{% endblock %}

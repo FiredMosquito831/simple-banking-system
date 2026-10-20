@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block page_title %}Customers{% endblock %}
+{% block page_subtitle %}{{ customers|length }} shown{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <form class="filters" method="get" action="/admin/customers">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Search name or email…">
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Search</button>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Customer</th><th>Email</th><th>KYC</th><th>Status</th><th>Joined</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for customer in customers %}
+          <tr>
+            <td>
+              <span class="cell-user"><span class="avatar sm">{{ customer.initials }}</span>{{ customer.full_name }}</span>
+            </td>
+            <td>{{ customer.email }}</td>
+            <td>
+              <form method="post" action="/admin/customers/{{ customer.id }}/kyc" class="inline-form">
+                <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                <select name="decision" class="select-sm">
+                  <option value="verified" {{ 'selected' if customer.kyc_status == 'verified' }}>verified</option>
+                  <option value="pending" {{ 'selected' if customer.kyc_status == 'pending' }}>pending</option>
+                  <option value="rejected" {{ 'selected' if customer.kyc_status == 'rejected' }}>rejected</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">Set</button>
+              </form>
+            </td>
+            <td><span class="badge badge-{{ 'ok' if customer.status == 'active' else 'danger' }}">{{ customer.status }}</span></td>
+            <td class="nowrap">{{ format_date(customer.created_at) }}</td>
+            <td class="right">
+              {% if customer.id != user.id %}
+                <form method="post" action="/admin/customers/{{ customer.id }}/status" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                  <input type="hidden" name="action" value="{{ 'unlock' if customer.status == 'locked' else 'lock' }}">
+                  <button class="btn btn-ghost btn-sm {{ 'danger' if customer.status == 'active' }}" type="submit">
+                    {{ 'Unlock' if customer.status == 'locked' else 'Lock' }}
+                  </button>
+                </form>
+              {% else %}
+                <span class="hint">you</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty-row">No customers found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block page_title %}Transactions{% endblock %}
+{% block page_subtitle %}{{ total }} ledger transaction{{ '' if total == 1 else 's' }}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/transactions">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Reference or description…">
+    <select name="type">
+      <option value="">Any type</option>
+      {% for option in types %}
+        <option value="{{ option }}" {{ 'selected' if type == option }}>{{ option|replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      <option value="">Any status</option>
+      {% for option in ['completed', 'pending', 'failed', 'reversed'] %}
+        <option value="{{ option }}" {{ 'selected' if status == option }}>{{ option }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Reference</th><th>When</th><th>Type</th><th>Description</th><th class="right">Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for tx in txs %}
+          <tr>
+            <td><a class="link mono" href="/transactions/{{ tx.reference }}">{{ tx.reference }}</a></td>
+            <td class="nowrap">{{ format_datetime(tx.created_at) }}</td>
+            <td><span class="pill">{{ tx.type|replace('_', ' ') }}</span></td>
+            <td>{{ tx.description|truncate(60) }}</td>
+            <td class="right">{{ format_money(tx.amount_cents, tx.currency) }}</td>
+            <td><span class="badge badge-{{ 'ok' if tx.status == 'completed' else ('danger' if tx.status == 'reversed' else 'warn') }}">{{ tx.status }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty-row">No transactions match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&q={{ q }}&type={{ type }}&status={{ status }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&q={{ q }}&type={{ type }}&status={{ status }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

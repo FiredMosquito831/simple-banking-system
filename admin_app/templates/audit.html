@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_title %}Audit trail{% endblock %}
+{% block page_subtitle %}{{ total }} event{{ '' if total == 1 else 's' }} — append-only operator log{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/audit">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Action, operator or details…">
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>When</th><th>Operator</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th></tr></thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td class="nowrap">{{ format_datetime(log.created_at) }}</td>
+            <td>{{ log.actor_label }}</td>
+            <td><span class="pill pill-plain">{{ log.action }}</span></td>
+            <td class="mono small-text">{{ log.entity_type }} {{ log.entity_id }}</td>
+            <td>{{ log.details|truncate(90) }}</td>
+            <td class="mono small-text">{{ log.ip or '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty-row">No audit events match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&q={{ q }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&q={{ q }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

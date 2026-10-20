@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block page_title %}Customers{% endblock %}
+{% block page_subtitle %}{{ total }} customer{{ '' if total == 1 else 's' }} in the database{% endblock %}
+{% block page_actions %}
+  <button class="btn btn-primary" type="button" data-toggle-panel="new-customer">{{ icon("plus", 18) }} New customer</button>
+{% endblock %}
+
+{% block content %}
+<section class="panel" id="new-customer" hidden>
+  <div class="section-head"><h2>Create customer</h2></div>
+  <form method="post" action="/customers/create" class="form">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <div class="grid-2">
+      <label class="field"><span>First name</span><input name="first_name" required></label>
+      <label class="field"><span>Last name</span><input name="last_name" required></label>
+    </div>
+    <div class="grid-2">
+      <label class="field"><span>Email</span><input type="email" name="email" required></label>
+      <label class="field"><span>Phone</span><input name="phone"></label>
+    </div>
+    <label class="field"><span>Address</span><input name="address"></label>
+    <div class="grid-2">
+      <label class="field"><span>Initial password</span><input name="password" minlength="8" required></label>
+      <label class="field"><span>KYC</span>
+        <select name="kyc"><option value="pending">pending</option><option value="verified">verified</option><option value="rejected">rejected</option></select>
+      </label>
+    </div>
+    <label class="field"><span>Role</span>
+      <select name="role"><option value="customer">customer</option><option value="admin">admin</option></select>
+    </label>
+    <p class="hint">A checking account is opened automatically with the welcome credit configured in Settings.</p>
+    <button class="btn btn-primary" type="submit">{{ icon("plus", 16) }} Create customer</button>
+  </form>
+</section>
+
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/customers">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Search name or email…">
+    <select name="status">
+      <option value="">Any status</option>
+      <option value="active" {{ 'selected' if status == 'active' }}>Active</option>
+      <option value="locked" {{ 'selected' if status == 'locked' }}>Locked</option>
+    </select>
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Customer</th><th>Email</th><th>Accounts</th><th class="right">Balance</th><th>KYC</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+      <tbody>
+        {% for customer in customers %}
+          <tr>
+            <td><a class="cell-user" href="/customers/{{ customer.id }}"><span class="avatar sm">{{ customer.initials }}</span>{{ customer.full_name }}</a></td>
+            <td>{{ customer.email }}</td>
+            <td>{{ customer.accounts|length }}</td>
+            <td class="right">{{ format_money(customer.accounts|sum(attribute='balance_cents'), 'USD') }}</td>
+            <td><span class="badge badge-{{ 'ok' if customer.kyc_status == 'verified' else ('warn' if customer.kyc_status == 'pending' else 'danger') }}">{{ customer.kyc_status }}</span></td>
+            <td><span class="pill">{{ customer.role }}</span></td>
+            <td><span class="badge badge-{{ 'ok' if customer.status == 'active' else 'danger' }}">{{ customer.status }}</span></td>
+            <td class="nowrap">{{ format_date(customer.created_at) }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="empty-row">No customers match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&q={{ q }}&status={{ status }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&q={{ q }}&status={{ status }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block page_title %}SQL console{% endblock %}
+{% block page_subtitle %}Direct database access — every statement is audited.{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="callout" style="margin:0 0 16px">
+    {{ icon("shield", 18) }}
+    <p>
+      SELECT / SHOW / DESCRIBE / EXPLAIN always run.
+      {% if write_enabled %}
+        Write statements (INSERT, UPDATE, DELETE) are <strong>enabled</strong> on this deployment.
+      {% else %}
+        Write statements are disabled; set <code>ALLOW_ADMIN_SQL_WRITE=1</code> to enable them.
+      {% endif %}
+      DROP, TRUNCATE, ALTER, CREATE and GRANT are always blocked.
+    </p>
+  </div>
+
+  <form method="post" action="/sql" class="form">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <label class="field">
+      <span>Statement</span>
+      <textarea class="sql-box" name="statement" spellcheck="false" placeholder="SELECT * FROM customers ORDER BY created_at DESC LIMIT 20;">{{ statement or '' }}</textarea>
+    </label>
+    <div style="display:flex; gap:10px">
+      <button class="btn btn-primary" type="submit">{{ icon("send", 16) }} Run statement</button>
+      <a class="btn btn-outline" href="/database">Browse tables</a>
+    </div>
+  </form>
+
+  {% if error %}
+    <div class="sql-error">{{ error }}</div>
+  {% endif %}
+
+  {% if rows %}
+    <div class="sql-result">
+      <div class="sql-meta"><span>{{ rows|length }} row{{ '' if rows|length == 1 else 's' }} (max 500)</span><span>{{ columns|length }} columns</span></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                {% for column in columns %}
+                  {% set value = row.get(column) %}
+                  <td class="mono small-text">{% if value is none %}<span class="hint">NULL</span>{% else %}{{ value }}{% endif %}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% elif rowcount is not none %}
+    <div class="sql-result">
+      <div class="sql-meta"><span>Statement affected {{ rowcount }} row{{ '' if rowcount == 1 else 's' }}.</span></div>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

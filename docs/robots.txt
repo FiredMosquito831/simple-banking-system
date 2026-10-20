@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bankingsystem.danubelabs.net/sitemap.xml

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}{{ items|selectattr('is_read', 'equalto', false)|list|length }} unread{% endblock %}
+{% block page_actions %}
+  <form method="post" action="/notifications/read">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <button class="btn btn-outline" type="submit">{{ icon("check", 16) }} Mark all read</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+  {% if items %}
+    <ul class="notify-list">
+      {% for item in items %}
+        <li class="{{ 'unread' if not item.is_read }}">
+          <span class="notify-dot {{ 'on' if not item.is_read }}"></span>
+          <span class="notify-main">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.body }}</p>
+            <small>{{ ago(item.created_at) }} · {{ format_datetime(item.created_at) }}</small>
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="empty"><div class="empty-icon">{{ icon("bell", 30) }}</div><h2>All quiet</h2><p>You'll see alerts about transfers, cards and loans here.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

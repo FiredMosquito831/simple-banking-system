@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_title %}Beneficiaries{% endblock %}
+{% block page_subtitle %}Save the people and businesses you pay most often.{% endblock %}
+
+{% block content %}
+<div class="split">
+  <section class="panel">
+    <div class="section-head"><h2>Saved payees</h2><span class="pill">{{ payees|length }}</span></div>
+    {% if payees %}
+      <ul class="payee-list">
+        {% for payee in payees %}
+          <li>
+            <span class="avatar">{{ payee.name[:2]|upper }}</span>
+            <span class="payee-main">
+              <strong>{{ payee.name }}</strong>
+              <small class="mono">{{ format_account(payee.account_number) }} · {{ payee.bank_name }}</small>
+            </span>
+            <a class="btn btn-ghost btn-sm" href="/transfer?to={{ payee.account_number }}">Send</a>
+            <form method="post" action="/beneficiaries/{{ payee.id }}/delete" data-confirm-submit="Remove {{ payee.name }}?">
+              <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+              <button class="icon-btn danger" type="submit" title="Remove">{{ icon("trash", 17) }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty small"><p>No saved beneficiaries yet.</p></div>
+    {% endif %}
+  </section>
+
+  <aside class="panel">
+    <h2 class="panel-title">Add a beneficiary</h2>
+    <form method="post" action="/beneficiaries" class="form">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <label class="field"><span>Name</span><input name="name" required placeholder="Full name or business"></label>
+      <label class="field"><span>Account number</span><input name="account_number" required placeholder="DANB4000…"></label>
+      <label class="field"><span>Bank</span><input name="bank_name" value="{{ bank_name }}"></label>
+      <button class="btn btn-primary btn-block" type="submit">{{ icon("plus", 16) }} Save beneficiary</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

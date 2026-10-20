@@ -1,0 +1,71 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: banking-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-banking}
+      MYSQL_USER: ${MYSQL_USER:-banker}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bankerpass}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # Optional full-stack profile: docker compose --profile full up -d --build
+  seed:
+    profiles: ["full"]
+    build: .
+    command: ["python", "-m", "scripts.seed"]
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-banker}:${MYSQL_PASSWORD:-bankerpass}@mysql:3306/${MYSQL_DATABASE:-banking}?charset=utf8mb4
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Password123!}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  app:
+    profiles: ["full"]
+    build: .
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-banker}:${MYSQL_PASSWORD:-bankerpass}@mysql:3306/${MYSQL_DATABASE:-banking}?charset=utf8mb4
+      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-secret-change-me}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Password123!}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+  admin:
+    profiles: ["full"]
+    build: .
+    command: ["uvicorn", "admin_app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-banker}:${MYSQL_PASSWORD:-bankerpass}@mysql:3306/${MYSQL_DATABASE:-banking}?charset=utf8mb4
+      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-secret-change-me}
+      ALLOW_ADMIN_SQL_WRITE: ${ALLOW_ADMIN_SQL_WRITE:-0}
+    ports:
+      - "8001:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  mysql_data:

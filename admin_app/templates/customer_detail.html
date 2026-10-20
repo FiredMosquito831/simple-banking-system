@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block page_title %}{{ customer.full_name }}{% endblock %}
+{% block page_subtitle %}{{ customer.email }} · customer since {{ format_date(customer.created_at) }}{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-ghost" href="/customers">← Customers</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Total balance</span><span class="stat-value">{{ format_money(accounts|sum(attribute='balance_cents'), 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Accounts</span><span class="stat-value">{{ accounts|length }}</span></div>
+  <div class="stat"><span class="stat-label">Cards</span><span class="stat-value">{{ cards|length }}</span></div>
+  <div class="stat"><span class="stat-label">Loans</span><span class="stat-value">{{ loans|length }}</span></div>
+  <div class="stat"><span class="stat-label">KYC</span><span class="stat-value"><span class="badge badge-{{ 'ok' if customer.kyc_status == 'verified' else ('warn' if customer.kyc_status == 'pending' else 'danger') }}">{{ customer.kyc_status }}</span></span></div>
+</div>
+
+<div class="detail-grid">
+  <section class="stack">
+    <section class="panel">
+      <div class="section-head"><h2>Accounts</h2><span class="pill">{{ accounts|length }}</span></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Account</th><th>Type</th><th class="right">Balance</th><th>Status</th><th>Opened</th></tr></thead>
+          <tbody>
+            {% for account in accounts %}
+              <tr>
+                <td><a class="link mono" href="/accounts/{{ account.id }}">{{ format_account(account.account_number) }}</a><br><small>{{ account.label }}</small></td>
+                <td>{{ account.type }}</td>
+                <td class="right">{{ format_money(account.balance_cents, account.currency) }}</td>
+                <td><span class="badge badge-{{ 'ok' if account.status == 'active' else ('warn' if account.status == 'frozen' else 'muted') }}">{{ account.status }}</span></td>
+                <td class="nowrap">{{ format_date(account.opened_at) }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="empty-row">No accounts.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="ops-divider"></div>
+      <h3 class="section-title">Open an account for this customer</h3>
+      <form method="post" action="/accounts/create" class="inline-forms">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <input type="hidden" name="customer_id" value="{{ customer.id }}">
+        <label class="field"><span>Type</span><select name="type"><option value="checking">checking</option><option value="savings">savings</option></select></label>
+        <label class="field"><span>Label</span><input name="label" placeholder="Optional"></label>
+        <label class="field"><span>Currency</span><select name="currency"><option>USD</option><option>EUR</option><option>GBP</option></select></label>
+        <label class="field"><span>Opening</span><input name="opening" type="number" step="0.01" min="0" value="0"></label>
+        <button class="btn btn-primary" type="submit">{{ icon("plus", 16) }} Create account</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Cards</h2><span class="pill">{{ cards|length }}</span></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Card</th><th>Account</th><th class="right">Daily limit</th><th>Status</th><th>Expires</th></tr></thead>
+          <tbody>
+            {% for card in cards %}
+              <tr>
+                <td class="mono">•••• {{ card.last4 }}</td>
+                <td class="mono small-text">{{ format_account(card.account.account_number) }}</td>
+                <td class="right">{{ format_money(card.daily_limit_cents, card.account.currency) }}</td>
+                <td><span class="badge badge-{{ 'ok' if card.status == 'active' else 'warn' }}">{{ card.status }}</span></td>
+                <td>{{ card.expiry }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="empty-row">No cards.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint"><a class="link" href="/cards">Manage cards →</a></p>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Loans</h2><span class="pill">{{ loans|length }}</span></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>#</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Term</th><th>Rate</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for loan in loans %}
+              <tr>
+                <td>{{ loan.id }}</td>
+                <td class="right">{{ format_money(loan.principal_cents, 'USD') }}</td>
+                <td class="right">{{ format_money(loan.outstanding_cents, 'USD') }}</td>
+                <td>{{ loan.term_months }}m</td>
+                <td>{{ (loan.annual_rate_bps / 100)|round(2) }}%</td>
+                <td><span class="badge badge-{{ 'ok' if loan.status == 'active' else ('warn' if loan.status == 'pending' else 'muted') }}">{{ loan.status|replace('_', ' ') }}</span></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="empty-row">No loans.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint"><a class="link" href="/loans">Loan decisions →</a></p>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Recent ledger entries</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>When</th><th>Account</th><th class="right">Amount</th><th class="right">Balance after</th><th>Transaction</th></tr></thead>
+          <tbody>
+            {% for entry in entries %}
+              <tr>
+                <td class="nowrap">{{ format_datetime(entry.created_at) }}</td>
+                <td class="mono small-text">{{ entry.account.account_number if entry.account else entry.account_id }}</td>
+                <td class="right {{ 'amount-in' if entry.amount_cents > 0 else 'amount-out' }}">{{ format_money(entry.amount_cents, 'USD', signed=True) }}</td>
+                <td class="right">{{ format_money(entry.balance_after_cents, 'USD') }}</td>
+                <td><a class="mono small-text" href="/transactions/{{ entry.transaction.reference if entry.transaction else '' }}">{{ entry.transaction.reference if entry.transaction else '—' }}</a></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="empty-row">No ledger activity.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <h2 class="panel-title">Access control</h2>
+      <div class="inline-forms" style="margin-bottom:14px">
+        <form method="post" action="/customers/{{ customer.id }}/status" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+          <input type="hidden" name="action" value="{{ 'unlock' if customer.status == 'locked' else 'lock' }}">
+          <button class="btn {{ 'btn-success' if customer.status == 'locked' else 'btn-ghost danger' }} btn-sm" type="submit">
+            {{ 'Reactivate login' if customer.status == 'locked' else 'Lock login' }}
+          </button>
+        </form>
+      </div>
+      <form method="post" action="/customers/{{ customer.id }}/kyc" class="form compact">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <label class="field"><span>KYC status</span>
+          <select name="decision">
+            {% for option in ['pending', 'verified', 'rejected'] %}
+              <option value="{{ option }}" {{ 'selected' if customer.kyc_status == option }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-outline btn-block" type="submit">Update KYC</button>
+      </form>
+      <form method="post" action="/customers/{{ customer.id }}/role" class="form compact" style="margin-top:10px">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <label class="field"><span>Role</span>
+          <select name="role">
+            <option value="customer" {{ 'selected' if customer.role == 'customer' }}>customer</option>
+            <option value="admin" {{ 'selected' if customer.role == 'admin' }}>admin</option>
+          </select>
+        </label>
+        <button class="btn btn-outline btn-block" type="submit">Update role</button>
+      </form>
+      <p class="hint">Status: <strong>{{ customer.status }}</strong> · Existing sessions end at the next request when locked.</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Profile</h2>
+      <form method="post" action="/customers/{{ customer.id }}/update" class="form compact">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <div class="grid-2">
+          <label class="field"><span>First name</span><input name="first_name" value="{{ customer.first_name }}" required></label>
+          <label class="field"><span>Last name</span><input name="last_name" value="{{ customer.last_name }}" required></label>
+        </div>
+        <label class="field"><span>Email (login)</span><input type="email" name="email" value="{{ customer.email }}" required></label>
+        <div class="grid-2">
+          <label class="field"><span>Phone</span><input name="phone" value="{{ customer.phone or '' }}"></label>
+          <label class="field"><span>Date of birth</span><input type="date" name="date_of_birth" value="{{ customer.date_of_birth.isoformat() if customer.date_of_birth else '' }}"></label>
+        </div>
+        <label class="field"><span>Address</span><input name="address" value="{{ customer.address or '' }}"></label>
+        <button class="btn btn-primary btn-block" type="submit">Save profile</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Reset password</h2>
+      <form method="post" action="/customers/{{ customer.id }}/password" class="form compact" data-confirm-submit="Reset this customer's password?">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <label class="field"><span>New password</span><input name="new_password" minlength="8" required></label>
+        <button class="btn btn-outline btn-block danger" type="submit">{{ icon("key", 16) }} Reset password</button>
+      </form>
+      <p class="hint">The customer is notified in-app. Share the new password through a secure channel.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

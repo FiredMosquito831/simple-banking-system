@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Profile, security and account details.{% endblock %}
+
+{% block content %}
+<div class="split">
+  <section class="panel">
+    <div class="section-head"><h2>Profile</h2><span class="badge badge-{{ 'ok' if user.kyc_status == 'verified' else 'warn' }}">KYC {{ user.kyc_status }}</span></div>
+    <form method="post" action="/settings/profile" class="form">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <div class="grid-2">
+        <label class="field"><span>First name</span><input name="first_name" value="{{ user.first_name }}" required></label>
+        <label class="field"><span>Last name</span><input name="last_name" value="{{ user.last_name }}" required></label>
+      </div>
+      <label class="field"><span>Email</span><input value="{{ user.email }}" disabled></label>
+      <div class="grid-2">
+        <label class="field"><span>Phone</span><input name="phone" value="{{ user.phone or '' }}"></label>
+        <label class="field"><span>Date of birth</span><input value="{{ format_date(user.date_of_birth) if user.date_of_birth else '—' }}" disabled></label>
+      </div>
+      <p class="hint">Your login email and date of birth are identity fields — contact support ({{ bank_support_email }}) to change them.</p>
+      <label class="field"><span>Address</span><input name="address" value="{{ user.address or '' }}"></label>
+      <button class="btn btn-primary" type="submit">Save profile</button>
+    </form>
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <h2 class="panel-title">Change password</h2>
+      <form method="post" action="/settings/password" class="form">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <label class="field"><span>Current password</span><input type="password" name="current_password" required autocomplete="current-password"></label>
+        <label class="field"><span>New password</span><input type="password" name="new_password" minlength="8" required autocomplete="new-password"></label>
+        <label class="field"><span>Confirm new password</span><input type="password" name="confirm_password" minlength="8" required autocomplete="new-password"></label>
+        <button class="btn btn-outline btn-block" type="submit">{{ icon("key", 16) }} Update password</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Account details</h2>
+      <dl class="kv">
+        <div><dt>Customer ID</dt><dd class="mono small-text">{{ user.public_id }}</dd></div>
+        <div><dt>Member since</dt><dd>{{ format_date(user.created_at) }}</dd></div>
+        <div><dt>Role</dt><dd>{{ user.role }}</dd></div>
+        <div><dt>Status</dt><dd><span class="badge badge-{{ 'ok' if user.status == 'active' else 'warn' }}">{{ user.status }}</span></dd></div>
+      </dl>
+      <p class="hint">KYC verification is handled by an advisor from the admin console. Verified customers get a better loan rate.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

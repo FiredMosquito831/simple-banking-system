@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block page_title %}Table · {{ table_name }}{% endblock %}
+{% block page_subtitle %}{{ total }} row{{ '' if total == 1 else 's' }} · {{ table.columns|length }} columns{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline" href="/database/{{ table_name }}/export.csv">{{ icon("download", 18) }} CSV</a>
+  <a class="btn btn-ghost" href="/database">← Tables</a>
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          {% for column in table.columns %}
+            <th>
+              <a class="link" href="?sort={{ column.name }}&dir={{ 'desc' if sort == column.name and direction == 'asc' else 'asc' }}">
+                {{ column.name }}{% if sort == column.name %} {{ '↓' if direction == 'desc' else '↑' }}{% endif %}
+              </a>
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for column in table.columns %}
+              {% set value = row.get(column.name) %}
+              <td class="mono small-text">
+                {% if value is none %}<span class="hint">NULL</span>
+                {% elif value|string|length > 80 %}{{ value|string|truncate(80) }}
+                {% else %}{{ value }}{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ table.columns|length }}" class="empty-row">Table is empty.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&sort={{ sort }}&dir={{ direction }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&sort={{ sort }}&dir={{ direction }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

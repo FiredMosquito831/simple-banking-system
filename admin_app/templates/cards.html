@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block page_title %}Cards{% endblock %}
+{% block page_subtitle %}{{ total }} card{{ '' if total == 1 else 's' }} · max daily limit {{ format_money(max_limit, 'USD') }}{% endblock %}
+{% block page_actions %}
+  <button class="btn btn-primary" type="button" data-toggle-panel="issue-card">{{ icon("plus", 18) }} Issue card</button>
+{% endblock %}
+
+{% block content %}
+<section class="panel" id="issue-card" hidden>
+  <div class="section-head"><h2>Issue a debit card</h2></div>
+  <form method="post" action="/cards/issue" class="form">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <label class="field"><span>Account</span>
+      <select name="account_id" required>
+        {% for account in accounts %}
+          <option value="{{ account.id }}">
+            {{ account.customer.full_name }} · {{ format_account(account.account_number) }} — {{ format_money(account.balance_cents, account.currency) }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="grid-2">
+      <label class="field"><span>PIN <em>optional — blank generates one</em></span><input name="pin" maxlength="4" pattern="\d{4}" inputmode="numeric"></label>
+      <label class="field"><span>Daily limit (USD)</span><input name="daily_limit" type="number" step="1" min="10" value="2500"></label>
+    </div>
+    <button class="btn btn-primary" type="submit">{{ icon("plus", 16) }} Issue card</button>
+  </form>
+</section>
+
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/cards">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Last 4 or account number…">
+    <select name="status">
+      <option value="">Any status</option>
+      {% for option in ['active', 'frozen', 'cancelled'] %}
+        <option value="{{ option }}" {{ 'selected' if status == option }}>{{ option }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Card</th><th>Owner</th><th>Account</th><th class="right">Limit</th><th class="right">Spent today</th><th>Status</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for card in cards %}
+          <tr>
+            <td class="mono">•••• {{ card.last4 }}<br><small>{{ card.brand }} · {{ card.expiry }}</small></td>
+            <td>{{ card.account.customer.full_name }}</td>
+            <td class="mono small-text">{{ format_account(card.account.account_number) }}</td>
+            <td class="right">{{ format_money(card.daily_limit_cents, card.account.currency) }}</td>
+            <td class="right">{{ format_money(card.spent_today_cents, card.account.currency) }}</td>
+            <td><span class="badge badge-{{ 'ok' if card.status == 'active' else ('warn' if card.status == 'frozen' else 'muted') }}">{{ card.status }}</span></td>
+            <td class="right">
+              <div class="inline-forms" style="justify-content:flex-end">
+                <button class="btn btn-ghost btn-sm" type="button" data-reveal-card="{{ card.id }}">Reveal</button>
+                {% if card.status == 'active' %}
+                  <form method="post" action="/cards/{{ card.id }}/freeze"><input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}"><button class="btn btn-ghost btn-sm" type="submit">Freeze</button></form>
+                {% elif card.status == 'frozen' %}
+                  <form method="post" action="/cards/{{ card.id }}/activate"><input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}"><button class="btn btn-ghost btn-sm" type="submit">Activate</button></form>
+                {% endif %}
+                {% if card.status != 'cancelled' %}
+                  <form method="post" action="/cards/{{ card.id }}/cancel" data-confirm-submit="Cancel card {{ card.last4 }} permanently?"><input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}"><button class="btn btn-ghost btn-sm danger" type="submit">Cancel</button></form>
+                {% endif %}
+              </div>
+              <div class="inline-forms" style="justify-content:flex-end; margin-top:6px">
+                <form method="post" action="/cards/{{ card.id }}/limit" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                  <input class="select-sm" name="daily_limit" type="number" step="1" min="10" value="{{ (card.daily_limit_cents / 100)|round(0)|int }}" style="width:90px">
+                  <button class="btn btn-ghost btn-sm" type="submit">Set limit</button>
+                </form>
+                <form method="post" action="/cards/{{ card.id }}/reset-pin"><input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}"><button class="btn btn-ghost btn-sm" type="submit">Reset PIN</button></form>
+              </div>
+              <div class="hint mono" data-reveal-target="{{ card.id }}" hidden></div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty-row">No cards match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&q={{ q }}&status={{ status }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&q={{ q }}&status={{ status }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
