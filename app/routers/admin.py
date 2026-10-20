@@ -1,7 +1,7 @@
 """Administrator console: customers, loan approvals, audit trail, batch jobs."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse

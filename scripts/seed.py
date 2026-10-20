@@ -7,7 +7,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import random
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -24,10 +23,7 @@ from app.models import (  # noqa: E402
     Card,
     Customer,
     KycStatus,
-    Loan,
-    LoanStatus,
     Role,
-    Transaction,
     TxType,
     utcnow,
 )
@@ -36,15 +32,14 @@ from app.security import (  # noqa: E402
     generate_card_number,
     hash_secret,
 )
+from app.services import settings as rules  # noqa: E402
 from app.services.banking import (  # noqa: E402
     approve_loan,
     apply_for_loan,
     create_account,
-    deposit,
     notify,
     post_transaction,
     transfer,
-    withdraw,
 )
 from app.models import CardStatus  # noqa: E402
 
@@ -58,6 +53,10 @@ def seed(reset: bool = False) -> None:
 
     db = SessionLocal()
     try:
+        rules.ensure_defaults(db)
+        db.commit()
+        rules.warm_cache(db)
+
         if db.scalar(select(Customer.id).limit(1)):
             print("Data already present — skipping seed. Use --reset to rebuild.")
             return
@@ -88,13 +87,13 @@ def seed(reset: bool = False) -> None:
         db.flush()
 
         alex_checking = create_account(db, alex, "checking", "Everyday checking", opening_cents=320_000,
-                                       overdraft_cents=settings.checking_overdraft_limit_cents)
+                                       overdraft_cents=rules.get_int(db, "accounts.checking_overdraft_cents", 50_000))
         alex_savings = create_account(db, alex, "savings", "Rainy day fund", opening_cents=1_450_000,
-                                      interest_bps=settings.savings_interest_bps)
+                                      interest_bps=rules.get_int(db, "accounts.savings_interest_bps", 350))
         maria_checking = create_account(db, maria, "checking", "Main account", opening_cents=180_000,
-                                        overdraft_cents=settings.checking_overdraft_limit_cents)
+                                        overdraft_cents=rules.get_int(db, "accounts.checking_overdraft_cents", 50_000))
         andrei_checking = create_account(db, andrei, "checking", "Main account", opening_cents=95_000,
-                                         overdraft_cents=settings.checking_overdraft_limit_cents)
+                                         overdraft_cents=rules.get_int(db, "accounts.checking_overdraft_cents", 50_000))
         db.flush()
 
         # --- Cards (Luhn-valid PANs, PIN hashed like the original project) ---

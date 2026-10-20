@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ status_code }} · Danube Ops</title>
+  <link rel="stylesheet" href="/shared/app.css">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="ops-login">
+  <main class="ops-login-card" style="text-align:center">
+    <p style="font-size:56px; font-weight:800; letter-spacing:-3px; color:#f59e0b; line-height:1">{{ status_code }}</p>
+    <h1 style="margin-top:8px">{{ message or "Something went wrong." }}</h1>
+    <p class="hint" style="margin-top:10px">The operator session may have expired, or the record no longer exists.</p>
+    <div class="receipt-actions" style="display:flex; gap:10px; justify-content:center; margin-top:20px">
+      <a class="btn btn-primary" href="/">Back to dashboard</a>
+      <a class="btn btn-outline" href="/login">Operator sign-in</a>
+    </div>
+  </main>
+</body>
+</html>

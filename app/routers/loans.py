@@ -6,14 +6,13 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import settings
 from ..db import get_db
 from ..deps import current_user, render, verify_csrf
-from ..models import Account, AccountStatus, Customer, KycStatus, Loan, LoanInstallment, LoanStatus
+from ..models import Account, AccountStatus, Customer, KycStatus, Loan, LoanInstallment
+from ..services import settings as rules
 from ..services.banking import (
     BankingError,
     apply_for_loan,
-    approve_loan,
     quote_loan,
     repay_installment,
     repay_loan_in_full,
@@ -23,14 +22,14 @@ from ..utils import flash
 router = APIRouter()
 
 
-def rate_for(customer: Customer, amount_cents: int) -> int:
-    """Simple risk pricing: 12.9% base, better with verified KYC and bigger amounts."""
-    bps = 1_290
+def rate_for(db: Session, customer: Customer, amount_cents: int) -> int:
+    """Risk pricing driven by the settings table: base rate, KYC and size discounts."""
+    bps = rules.get_int(db, "loans.base_rate_bps", 1_290)
     if customer.kyc_status == KycStatus.verified.value:
-        bps -= 290
-    if amount_cents >= 1_000_000:
-        bps -= 100
-    return max(bps, 690)
+        bps -= rules.get_int(db, "loans.verified_kyc_discount_bps", 290)
+    if amount_cents >= rules.get_int(db, "loans.large_threshold_cents", 1_000_000):
+        bps -= rules.get_int(db, "loans.large_discount_bps", 100)
+    return max(bps, 0)
 
 
 @router.get("/loans")
@@ -43,9 +42,11 @@ def loans_page(
 ):
     loans = db.scalars(select(Loan).where(Loan.customer_id == user.id).order_by(Loan.created_at.desc())).all()
     accounts = [a for a in user.accounts if a.status == AccountStatus.active.value and a.type == "checking"]
-    amount_cents = int(max(settings.loan_min_amount_cents, min(amount * 100, settings.loan_max_amount_cents)))
-    months = max(3, min(months, 60))
-    rate = rate_for(user, amount_cents)
+    min_cents = rules.get_int(db, "loans.min_cents", 50_000)
+    max_cents = rules.get_int(db, "loans.max_cents", 5_000_000)
+    amount_cents = int(max(min_cents, min(amount * 100, max_cents)))
+    months = max(rules.get_int(db, "loans.min_months", 3), min(months, rules.get_int(db, "loans.max_months", 60)))
+    rate = rate_for(db, user, amount_cents)
     return render(
         request,
         "loans.html",
@@ -85,7 +86,7 @@ def apply_loan(
             account=account,
             principal_cents=cents,
             months=months,
-            rate_bps=rate_for(user, cents),
+            rate_bps=rate_for(db, user, cents),
             purpose=purpose.strip(),
         )
         db.commit()

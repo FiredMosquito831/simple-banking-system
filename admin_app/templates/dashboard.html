@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block page_title %}Operations overview{% endblock %}
+{% block page_subtitle %}Live state of {{ bank_name }} — data comes straight from MySQL.{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline" href="/database">{{ icon("file", 18) }} Database</a>
+  <a class="btn btn-primary" href="/customers">{{ icon("users", 18) }} Customers</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-row five">
+  <div class="stat"><span class="stat-label">Customers</span><span class="stat-value">{{ stats.customers }}</span></div>
+  <div class="stat"><span class="stat-label">Accounts</span><span class="stat-value">{{ stats.accounts }}</span></div>
+  <div class="stat"><span class="stat-label">Customer deposits</span><span class="stat-value">{{ format_money(stats.deposits, 'USD') }}</span></div>
+  <div class="stat"><span class="stat-label">Transactions today</span><span class="stat-value">{{ stats.tx_today }}</span></div>
+  <div class="stat"><span class="stat-label">Active cards</span><span class="stat-value">{{ stats.active_cards }}</span></div>
+  <div class="stat"><span class="stat-label">Pending loans</span><span class="stat-value">{{ stats.pending_loans }}</span></div>
+  <div class="stat"><span class="stat-label">Pending KYC</span><span class="stat-value">{{ stats.pending_kyc }}</span></div>
+  <div class="stat"><span class="stat-label">Non-active accounts</span><span class="stat-value">{{ stats.frozen_accounts }}</span></div>
+</div>
+
+<div class="detail-grid">
+  <section class="panel">
+    <div class="section-head">
+      <h2>Loan applications</h2>
+      <a class="link" href="/loans?status=pending">All loans</a>
+    </div>
+    {% if pending_loans %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>#</th><th>Customer</th><th class="right">Amount</th><th>Term</th><th>Rate</th><th class="right">Actions</th></tr></thead>
+          <tbody>
+            {% for loan in pending_loans %}
+              <tr>
+                <td>{{ loan.id }}</td>
+                <td>{{ loan.customer.full_name }}<br><small>{{ loan.purpose or "—" }}</small></td>
+                <td class="right">{{ format_money(loan.principal_cents, 'USD') }}</td>
+                <td>{{ loan.term_months }}m</td>
+                <td>{{ (loan.annual_rate_bps / 100)|round(2) }}%</td>
+                <td class="right">
+                  <form method="post" action="/loans/{{ loan.id }}/approve" class="inline-form">
+                    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                    <button class="btn btn-success btn-sm" type="submit">Approve</button>
+                  </form>
+                  <form method="post" action="/loans/{{ loan.id }}/reject" class="inline-form" data-confirm-submit="Reject loan #{{ loan.id }}?">
+                    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                    <button class="btn btn-ghost btn-sm danger" type="submit">Reject</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty small"><p>No applications waiting.</p></div>
+    {% endif %}
+
+    <div class="section-head" style="margin-top:22px">
+      <h2>Latest transactions</h2>
+      <a class="link" href="/transactions">View all</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Reference</th><th>When</th><th>Type</th><th class="right">Amount</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for tx in recent_tx %}
+            <tr>
+              <td><a class="link mono" href="/transactions/{{ tx.reference }}">{{ tx.reference }}</a></td>
+              <td class="nowrap">{{ format_datetime(tx.created_at) }}</td>
+              <td><span class="pill">{{ tx.type|replace('_', ' ') }}</span></td>
+              <td class="right">{{ format_money(tx.amount_cents, tx.currency) }}</td>
+              <td><span class="badge badge-{{ 'ok' if tx.status == 'completed' else 'warn' }}">{{ tx.status }}</span></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="empty-row">No transactions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <div class="section-head"><h2>System status</h2><span class="ops-badge">live</span></div>
+      <dl class="kv compact">
+        <div><dt>Maintenance mode</dt><dd><span class="badge badge-{{ 'danger' if maintenance else 'ok' }}">{{ 'ON' if maintenance else 'off' }}</span></dd></div>
+        <div><dt>Settings source</dt><dd>MySQL · settings table</dd></div>
+        <div><dt>Audit entries</dt><dd>recorded</dd></div>
+      </dl>
+      <div class="callout" style="margin-top:14px">
+        {{ icon("shield", 18) }}
+        <p>Every operator action is appended to the audit trail with your email and IP.</p>
+      </div>
+      <a class="btn btn-outline btn-block" style="margin-top:12px" href="/settings">{{ icon("settings", 16) }} Manage settings</a>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Recent operator activity</h2><a class="link" href="/audit">Full trail</a></div>
+      <ul class="timeline">
+        {% for log in recent_audit %}
+          <li>
+            <span class="when">{{ format_datetime(log.created_at) }}</span>
+            <span><strong>{{ log.action }}</strong><br><small class="hint">{{ log.actor_label }}</small></span>
+          </li>
+        {% else %}
+          <li class="hint">No activity recorded yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block page_title %}Accounts{% endblock %}
+{% block page_subtitle %}{{ total }} account{{ '' if total == 1 else 's' }}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/accounts">
+    <input class="search" type="search" name="q" value="{{ q }}" placeholder="Account number, label or owner email…">
+    <select name="status">
+      <option value="">Any status</option>
+      {% for option in ['active', 'frozen', 'closed'] %}
+        <option value="{{ option }}" {{ 'selected' if status == option }}>{{ option }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline" type="submit">{{ icon("search", 16) }} Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Account</th><th>Owner</th><th>Type</th><th class="right">Balance</th><th class="right">Overdraft</th><th>Status</th><th>Opened</th></tr></thead>
+      <tbody>
+        {% for account in accounts %}
+          <tr>
+            <td><a class="link mono" href="/accounts/{{ account.id }}">{{ format_account(account.account_number) }}</a><br><small>{{ account.label }}</small></td>
+            <td><a class="link" href="/customers/{{ account.customer_id }}">{{ account.customer.full_name }}</a><br><small>{{ account.customer.email }}</small></td>
+            <td>{{ account.type }}</td>
+            <td class="right">{{ format_money(account.balance_cents, account.currency) }}</td>
+            <td class="right">{{ format_money(account.overdraft_limit_cents, account.currency) }}</td>
+            <td><span class="badge badge-{{ 'ok' if account.status == 'active' else ('warn' if account.status == 'frozen' else 'muted') }}">{{ account.status }}</span></td>
+            <td class="nowrap">{{ format_date(account.opened_at) }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty-row">No accounts match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&q={{ q }}&status={{ status }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&q={{ q }}&status={{ status }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

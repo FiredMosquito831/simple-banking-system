@@ -10,11 +10,11 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import settings
 from ..db import get_db
 from ..deps import current_user, owned_account, render, verify_csrf
-from ..models import Account, AccountStatus, AccountType, Card, CardStatus, Loan, LoanStatus, Transaction, TxType
-from ..services.banking import BankingError, create_account, get_account_by_number
+from ..models import Account, AccountStatus, AccountType, Card, CardStatus, Loan, LoanStatus, TxType
+from ..services.banking import BankingError, create_account
+from ..services import settings as rules
 from ..services.queries import (
     account_transactions,
     balance_series,
@@ -70,7 +70,7 @@ def dashboard(
         recent=recent[:8],
         cards=cards,
         loans=loans,
-        currency=settings.default_currency,
+        currency=rules.get_value(db, "money.default_currency") or "USD",
     )
 
 
@@ -94,8 +94,9 @@ def new_account(
         return RedirectResponse("/accounts/new", status_code=303)
 
     count = len([a for a in user.accounts if a.status != AccountStatus.closed.value])
-    if count >= 6:
-        flash(request, "error", "You can hold at most 6 open accounts in this demo.")
+    max_accounts = rules.get_int(db, "accounts.max_per_customer", 6)
+    if count >= max_accounts:
+        flash(request, "error", f"You can hold at most {max_accounts} open accounts.")
         return RedirectResponse("/dashboard", status_code=303)
 
     account = create_account(
@@ -104,8 +105,8 @@ def new_account(
         account_type=type,
         label=label.strip() or ("Savings" if type == "savings" else "Checking"),
         currency=currency if currency in ("USD", "EUR", "GBP") else "USD",
-        interest_bps=settings.savings_interest_bps if type == "savings" else 0,
-        overdraft_cents=settings.checking_overdraft_limit_cents if type == "checking" else 0,
+        interest_bps=rules.get_int(db, "accounts.savings_interest_bps", 350) if type == "savings" else 0,
+        overdraft_cents=rules.get_int(db, "accounts.checking_overdraft_cents", 50_000) if type == "checking" else 0,
     )
     db.commit()
     flash(request, "success", f"New {type} account opened — {account.account_number}.")
@@ -214,12 +215,13 @@ def deposit_money(
     from ..services.banking import deposit
 
     account = owned_account(account_id, user, db)
+    max_cents = rules.get_int(db, "money.max_cash_cents", 10_000_000)
     try:
         cents = int(round(float(amount.replace(",", "")) * 100))
-        if not 1 <= cents <= 10_000_000:
+        if not 1 <= cents <= max_cents:
             raise ValueError
     except ValueError:
-        flash(request, "error", "Enter a valid amount between 0.01 and 100,000.")
+        flash(request, "error", f"Enter a valid amount between 0.01 and {max_cents / 100:,.2f}.")
         return RedirectResponse(f"/accounts/{account.id}", status_code=303)
     try:
         deposit(db, actor=user, account=account, amount_cents=cents, note=note.strip() or "Cash deposit")
@@ -244,12 +246,13 @@ def withdraw_money(
     from ..services.banking import withdraw
 
     account = owned_account(account_id, user, db)
+    max_cents = rules.get_int(db, "money.max_cash_cents", 10_000_000)
     try:
         cents = int(round(float(amount.replace(",", "")) * 100))
-        if not 1 <= cents <= 10_000_000:
+        if not 1 <= cents <= max_cents:
             raise ValueError
     except ValueError:
-        flash(request, "error", "Enter a valid amount between 0.01 and 100,000.")
+        flash(request, "error", f"Enter a valid amount between 0.01 and {max_cents / 100:,.2f}.")
         return RedirectResponse(f"/accounts/{account.id}", status_code=303)
     try:
         withdraw(db, actor=user, account=account, amount_cents=cents, note=note.strip() or "ATM withdrawal")

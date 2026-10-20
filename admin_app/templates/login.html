@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Operator sign-in · {{ bank_name }} Ops</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b1220'/><path d='M8 22V10l8 6 8-6v12' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="/shared/app.css">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="ops-login">
+  <main class="ops-login-card">
+    <div class="brand">
+      <span class="brand-mark ops-mark">{{ icon("shield", 22) }}</span>
+      <span class="brand-text">Danube<span>Ops</span></span>
+    </div>
+    <h1>Operator sign-in</h1>
+    <p class="hint" style="margin:6px 0 18px">Restricted management console for {{ bank_name }}. All actions are audited.</p>
+
+    {% if flashes %}
+      {% for kind, message in flashes %}
+        <div class="toast toast-{{ kind }}" style="margin-bottom:12px">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+    {% if error %}
+      <div class="toast toast-error" style="margin-bottom:12px">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login" class="form">
+      <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+      <label class="field">
+        <span>Operator email</span>
+        <input type="email" name="email" value="{{ email or '' }}" required autofocus autocomplete="username">
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button class="btn btn-primary btn-block" type="submit">{{ icon("lock", 16) }} Sign in</button>
+    </form>
+
+    <p class="hint" style="margin-top:16px">Customer-facing app: <a class="link" href="http://127.0.0.1:8000/login">online banking ↗</a></p>
+  </main>
+</body>
+</html>

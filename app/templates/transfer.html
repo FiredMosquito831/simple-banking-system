@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block page_title %}Send money{% endblock %}
-{% block page_subtitle %}Transfers between Danube Bank accounts settle instantly.{% endblock %}
+{% block page_subtitle %}Transfers between {{ bank_name }} accounts settle instantly.{% endblock %}
 {% block page_actions %}
   <a class="btn btn-outline" href="/beneficiaries">{{ icon("users", 18) }} Beneficiaries</a>
   <a class="btn btn-outline" href="/scheduled">{{ icon("calendar", 18) }} Schedule</a>

@@ -8,10 +8,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import settings
 from ..db import get_db
 from ..deps import current_user, owned_account, render, verify_csrf
-from ..models import Account, AccountStatus, Card, CardStatus, Customer
+from ..models import AccountStatus, Card, CardStatus, Customer
 from ..security import (
     decrypt_pan,
     encrypt_pan,
@@ -20,6 +19,7 @@ from ..security import (
     hash_secret,
     verify_secret,
 )
+from ..services import settings as rules
 from ..services.banking import BankingError, card_payment, notify
 from ..utils import flash
 
@@ -48,7 +48,7 @@ def cards_page(request: Request, user=Depends(current_user), db: Session = Depen
         title="Cards",
         cards=cards,
         accounts=accounts,
-        reveal_allowed=settings.reveal_card_numbers,
+        reveal_allowed=rules.get_bool(db, "security.reveal_card_numbers", True),
     )
 
 
@@ -68,8 +68,9 @@ def issue_card(
         return RedirectResponse("/cards", status_code=303)
 
     existing = db.scalars(select(Card).where(Card.account_id == account.id, Card.status != CardStatus.cancelled.value)).all()
-    if len(existing) >= 3:
-        flash(request, "error", "This account already has the maximum of 3 cards.")
+    max_cards = rules.get_int(db, "cards.max_per_account", 3)
+    if len(existing) >= max_cards:
+        flash(request, "error", f"This account already has the maximum of {max_cards} cards.")
         return RedirectResponse("/cards", status_code=303)
 
     if pin and not (pin.isdigit() and len(pin) == 4):
@@ -78,9 +79,9 @@ def issue_card(
     pin = pin or generate_pin()
     try:
         limit_cents = int(round(float(daily_limit.replace(",", "")) * 100))
-        limit_cents = max(1_000, min(limit_cents, 1_000_000))
+        limit_cents = max(1_000, min(limit_cents, rules.get_int(db, "cards.max_daily_limit_cents", 1_000_000)))
     except ValueError:
-        limit_cents = 250_000
+        limit_cents = rules.get_int(db, "cards.default_daily_limit_cents", 250_000)
 
     pan = generate_card_number()
     today = date.today()
@@ -152,7 +153,7 @@ def set_limit(
     except ValueError:
         flash(request, "error", "Enter a valid daily limit.")
         return RedirectResponse("/cards", status_code=303)
-    card.daily_limit_cents = max(1_000, min(cents, 1_000_000))
+    card.daily_limit_cents = max(1_000, min(cents, rules.get_int(db, "cards.max_daily_limit_cents", 1_000_000)))
     db.commit()
     flash(request, "success", f"Daily limit set to {card.daily_limit_cents / 100:,.2f}.")
     return RedirectResponse("/cards", status_code=303)
@@ -215,7 +216,7 @@ def card_details(
 ):
     """Demo-only convenience: reveal the full PAN over an authenticated request."""
     card = _own_card(card_id, user, db)
-    if not settings.reveal_card_numbers:
+    if not rules.get_bool(db, "security.reveal_card_numbers", True):
         return JSONResponse({"detail": "Reveal is disabled."}, status_code=403)
     return JSONResponse(
         {

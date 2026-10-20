@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "Welcome" }} · Danube Bank</title>
+  <title>{{ title or "Welcome" }} · {{ bank_name }}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d2b45'/><path d='M8 22V10l8 6 8-6v12' stroke='%235fd6b8' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -12,7 +12,7 @@
     <section class="guest-art">
       <div class="brand brand-lg">
         <span class="brand-mark">{{ icon("bank", 24) }}</span>
-        <span class="brand-text">Danube<span>Bank</span></span>
+        <span class="brand-text">{{ bank_lead }}<span>{{ bank_tail }}</span></span>
       </div>
       <div class="guest-copy">
         <h2>Banking that feels<br>effortless.</h2>

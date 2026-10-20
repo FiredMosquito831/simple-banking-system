@@ -10,7 +10,7 @@
         {% for card in cards %}
           <article class="bank-card {{ 'is-frozen' if card.status == 'frozen' }}">
             <div class="bank-card-top">
-              <span class="bank-card-brand">Danube Bank</span>
+              <span class="bank-card-brand">{{ bank_name }}</span>
               <span class="bank-card-scheme">VISA</span>
             </div>
             <div class="chip-icon" aria-hidden="true"></div>

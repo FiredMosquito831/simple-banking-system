@@ -22,3 +22,4 @@ Thumbs.db
 *.log
 *.png
 !docs/screenshots/*.png
+!docs/og-image.png

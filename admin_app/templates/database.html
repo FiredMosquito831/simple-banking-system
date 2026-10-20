@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block page_title %}Database explorer{% endblock %}
+{% block page_subtitle %}{{ database_name }} · MySQL {{ version }} · {{ tables_count }} tables{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline" href="/database/backup.sql">{{ icon("download", 18) }} SQL backup</a>
+  <a class="btn btn-primary" href="/sql">{{ icon("key", 18) }} SQL console</a>
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="section-head"><h2>Tables</h2><span class="hint">Row counts are live</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Table</th><th class="right">Rows</th><th class="right">Columns</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for table in tables %}
+          <tr>
+            <td><a class="link db-table-name" href="/database/{{ table.name }}">{{ table.name }}</a></td>
+            <td class="right db-rows">{{ table.rows }}</td>
+            <td class="right">{{ table.columns }}</td>
+            <td class="right">
+              <a class="btn btn-ghost btn-sm" href="/database/{{ table.name }}">Browse</a>
+              <a class="btn btn-ghost btn-sm" href="/database/{{ table.name }}/export.csv">CSV</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="callout" style="margin-top:16px">
+    {{ icon("shield", 18) }}
+    <p>The backup endpoint streams a full SQL dump (<code>CREATE TABLE</code> + <code>INSERT</code> statements). Exports and backups are recorded in the audit trail.</p>
+  </div>
+</section>
+{% endblock %}

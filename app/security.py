@@ -89,11 +89,11 @@ def generate_pin() -> str:
     return f"{secrets.randbelow(9000) + 1000}"
 
 
-def generate_account_number() -> str:
-    """IBAN-like local account number: DANB + branch (4) + serial (10)."""
+def generate_account_number(prefix: str = "DANB") -> str:
+    """IBAN-like local account number: prefix + branch (4) + serial (10)."""
     branch = "4000"
     serial = f"{secrets.randbelow(10**10):010d}"
-    return f"{settings.bank_code}{branch}{serial}"
+    return f"{prefix}{branch}{serial}"
 
 
 def csrf_token() -> str:

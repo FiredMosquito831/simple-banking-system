@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..models import Account, Customer, LedgerEntry, Transaction, TxStatus
+from ..models import Account, LedgerEntry, Transaction, TxStatus
 
 
 @dataclass

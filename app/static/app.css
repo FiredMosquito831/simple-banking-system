@@ -388,8 +388,8 @@ code, .mono { font-family: var(--mono); font-size: .92em; }
 .card-forms { margin-top: 6px; }
 .purchase { margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 12px; }
 .purchase summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
-.inline-form { display: flex; gap: 10px; align-items: end; margin-top: 12px; flex-wrap: wrap; }
-.inline-form .field { flex: 1; min-width: 140px; }
+.purchase .inline-form { display: flex; gap: 10px; align-items: end; margin-top: 12px; flex-wrap: wrap; }
+.purchase .inline-form .field { flex: 1; min-width: 140px; }
 
 /* ---------- Loans ---------- */
 .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }

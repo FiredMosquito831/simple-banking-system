@@ -78,6 +78,8 @@ class TxType(str, enum.Enum):
     interest = "interest"
     loan_disbursement = "loan_disbursement"
     loan_repayment = "loan_repayment"
+    adjustment = "adjustment"
+    reversal = "reversal"
 
 
 class TxStatus(str, enum.Enum):
@@ -233,6 +235,9 @@ class Transaction(Base):
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     initiated_by: Mapped[int | None] = mapped_column(ForeignKey("customers.id", ondelete="SET NULL"), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    reversal_of_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transactions.id", ondelete="SET NULL"), unique=True, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     entries: Mapped[list["LedgerEntry"]] = relationship(
@@ -342,3 +347,16 @@ class AuditLog(Base):
     details: Mapped[str] = mapped_column(Text, default="")
     ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class Setting(Base):
+    """Runtime configuration editable from the admin app (no redeploy needed)."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), default="")
+    value_type: Mapped[str] = mapped_column(String(16), default="string")  # string | int | bool | email
+    label: Mapped[str] = mapped_column(String(140), default="")
+    category: Mapped[str] = mapped_column(String(60), default="General")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

@@ -1,0 +1,51 @@
+name: tests
+
+on:
+  push:
+    branches: [main, full-banking-demo]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: banking
+          MYSQL_USER: banker
+          MYSQL_PASSWORD: bankerpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -prootpass"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql+pymysql://banker:bankerpass@127.0.0.1:3306/banking?charset=utf8mb4
+      SECRET_KEY: ci-only-secret
+      DEMO_PASSWORD: Password123!
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile
+        run: python -m compileall -q app admin_app scripts
+
+      - name: Seed schema
+        run: python -m scripts.seed
+
+      - name: Run tests
+        run: pytest -q

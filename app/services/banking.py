@@ -37,6 +37,7 @@ from ..models import (
     utcnow,
 )
 from ..security import generate_account_number
+from . import settings as rules
 
 
 class BankingError(Exception):
@@ -80,7 +81,7 @@ def create_account(
     overdraft_cents: int = 0,
 ) -> Account:
     for _ in range(5):
-        number = generate_account_number()
+        number = generate_account_number(rules.get_value(db, "bank.code") or "DANB")
         if not db.scalar(select(Account.id).where(Account.account_number == number)):
             break
     else:  # pragma: no cover
@@ -210,6 +211,9 @@ def transfer(
     from_account = db.get(Account, from_account_id)
     if not from_account or (actor is not None and from_account.customer_id != actor.id):
         raise BankingError("You can only transfer from your own account.")
+    max_cents = rules.get_int(db, "money.max_transfer_cents", 10_000_000)
+    if amount_cents > max_cents:
+        raise BankingError(f"A single transfer may not exceed {max_cents / 100:,.2f}.")
     if from_account.status != AccountStatus.active.value:
         raise BankingError("This account is not available for transfers.")
 
@@ -358,10 +362,16 @@ def apply_for_loan(
 ) -> Loan:
     if account.customer_id != customer.id:
         raise BankingError("Disbursement account must belong to you.")
-    if not 50_000 <= principal_cents <= 5_000_000:
-        raise BankingError("Loan amount must be between 500 and 50,000.")
-    if not 3 <= months <= 60:
-        raise BankingError("Term must be between 3 and 60 months.")
+    min_cents = rules.get_int(db, "loans.min_cents", 50_000)
+    max_cents = rules.get_int(db, "loans.max_cents", 5_000_000)
+    min_months = rules.get_int(db, "loans.min_months", 3)
+    max_months = rules.get_int(db, "loans.max_months", 60)
+    if not min_cents <= principal_cents <= max_cents:
+        raise BankingError(
+            f"Loan amount must be between {min_cents / 100:,.0f} and {max_cents / 100:,.0f}."
+        )
+    if not min_months <= months <= max_months:
+        raise BankingError(f"Term must be between {min_months} and {max_months} months.")
 
     open_loans = db.scalar(
         select(Loan).where(
@@ -478,6 +488,48 @@ def repay_loan_in_full(db: Session, *, actor: Customer, loan: Loan) -> Transacti
     for inst in loan.installments:
         inst.status = InstallmentStatus.paid.value
     return tx
+
+
+# --- Reversals -------------------------------------------------------------
+def reverse_transaction(
+    db: Session, *, transaction: Transaction, actor: Customer | None = None, reason: str = ""
+) -> Transaction:
+    """Post the mirror image of a completed transaction and mark the original reversed."""
+    if transaction.status != TxStatus.completed.value:
+        raise BankingError("Only completed transactions can be reversed.")
+    if transaction.type == TxType.reversal.value:
+        raise BankingError("A reversal cannot itself be reversed.")
+    if db.scalar(select(Transaction.id).where(Transaction.reversal_of_id == transaction.id)):
+        raise BankingError("This transaction has already been reversed.")
+    if not transaction.entries:
+        raise BankingError("Transaction has no ledger entries to reverse.")
+
+    accounts = {e.account_id: db.get(Account, e.account_id) for e in transaction.entries}
+    if any(a is None for a in accounts.values()):
+        raise BankingError("One of the accounts no longer exists.")
+    entries = [(accounts[e.account_id], -e.amount_cents) for e in transaction.entries]
+
+    reversal = post_transaction(
+        db,
+        tx_type=TxType.reversal,
+        amount_cents=transaction.amount_cents,
+        currency=transaction.currency,
+        description=f"Reversal of {transaction.reference}" + (f" — {reason}" if reason else ""),
+        entries=entries,
+        actor=actor,
+    )
+    reversal.reversal_of_id = transaction.id
+    transaction.status = TxStatus.reversed.value
+
+    for account in accounts.values():
+        notify(
+            db,
+            account.customer_id,
+            f"Transaction reversed — {transaction.amount_cents / 100:,.2f} {transaction.currency}",
+            f"{transaction.reference} was reversed. Reference {reversal.reference}.",
+        )
+    audit(db, actor, "transaction.reverse", "transaction", transaction.reference, reason or "no reason given")
+    return reversal
 
 
 # --- Batch jobs ------------------------------------------------------------

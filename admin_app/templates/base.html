@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ title or "Operations" }} · {{ bank_name }} Ops</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b1220'/><path d='M8 22V10l8 6 8-6v12' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="/shared/app.css">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="ops-body">
+<div class="shell ops-shell">
+  <aside class="sidebar ops-sidebar" id="sidebar">
+    <a class="brand" href="/">
+      <span class="brand-mark ops-mark">{{ icon("shield", 22) }}</span>
+      <span class="brand-text">Danube<span>Ops</span></span>
+    </a>
+    <p class="ops-env">Bank management console</p>
+
+    <nav class="nav">
+      <p class="nav-label">Overview</p>
+      <a class="nav-link {{ 'active' if request.url.path == '/' }}" href="/">{{ icon("home") }} Dashboard</a>
+
+      <p class="nav-label">Customers</p>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/customers') }}" href="/customers">{{ icon("users") }} Customers</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/accounts') }}" href="/accounts">{{ icon("wallet") }} Accounts</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/transactions') }}" href="/transactions">{{ icon("send") }} Transactions</a>
+
+      <p class="nav-label">Products</p>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/cards') }}" href="/cards">{{ icon("card") }} Cards</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/loans') }}" href="/loans">{{ icon("bank") }} Loans</a>
+
+      <p class="nav-label">System</p>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/settings') }}" href="/settings">{{ icon("settings") }} Settings</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/database') }}" href="/database">{{ icon("file") }} Database</a>
+      <a class="nav-link {{ 'active' if request.url.path == '/sql' }}" href="/sql">{{ icon("key") }} SQL console</a>
+      <a class="nav-link {{ 'active' if request.url.path.startswith('/audit') }}" href="/audit">{{ icon("shield") }} Audit trail</a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <span class="avatar ops-avatar">{{ user.initials if user else "·" }}</span>
+        <span class="user-meta">
+          <strong>{{ user.full_name if user else "" }}</strong>
+          <small>operator</small>
+        </span>
+      </div>
+      <a class="btn btn-ghost btn-block ops-link" href="http://127.0.0.1:8000/dashboard" target="_blank" rel="noopener">
+        {{ icon("wallet") }} Customer app ↗
+      </a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <button class="btn btn-ghost btn-block" type="submit">{{ icon("logout") }} Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar ops-topbar">
+      <button class="icon-btn menu-btn" type="button" data-toggle-sidebar aria-label="Menu">{{ icon("menu") }}</button>
+      <div class="topbar-title">
+        <h1>{% block page_title %}{{ title }}{% endblock %}</h1>
+        <p>{% block page_subtitle %}{% endblock %}</p>
+      </div>
+      <div class="topbar-actions">{% block page_actions %}{% endblock %}</div>
+    </header>
+
+    <div class="content">
+      {% if flashes %}
+        <div class="toasts">
+          {% for kind, message in flashes %}
+            <div class="toast toast-{{ kind }}">{{ icon("check" if kind == "success" else "bell", 18) }}<span>{{ message }}</span></div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+<script src="/shared/app.js"></script>
+<script src="/static/admin.js"></script>
+</body>
+</html>

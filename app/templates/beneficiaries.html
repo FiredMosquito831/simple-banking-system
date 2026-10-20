@@ -34,7 +34,7 @@
       <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
       <label class="field"><span>Name</span><input name="name" required placeholder="Full name or business"></label>
       <label class="field"><span>Account number</span><input name="account_number" required placeholder="DANB4000…"></label>
-      <label class="field"><span>Bank</span><input name="bank_name" value="Danube Bank"></label>
+      <label class="field"><span>Bank</span><input name="bank_name" value="{{ bank_name }}"></label>
       <button class="btn btn-primary btn-block" type="submit">{{ icon("plus", 16) }} Save beneficiary</button>
     </form>
   </aside>

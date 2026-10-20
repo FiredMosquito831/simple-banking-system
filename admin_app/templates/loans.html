@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block page_title %}Loans{% endblock %}
+{% block page_subtitle %}{{ total }} loan{{ '' if total == 1 else 's' }} · base rate {{ (default_rate / 100)|round(2) }}%{% endblock %}
+{% block page_actions %}
+  <button class="btn btn-primary" type="button" data-toggle-panel="create-loan">{{ icon("plus", 18) }} Book loan</button>
+{% endblock %}
+
+{% block content %}
+<section class="panel" id="create-loan" hidden>
+  <div class="section-head"><h2>Book a loan on behalf of a customer</h2></div>
+  <form method="post" action="/loans/create" class="form">
+    <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+    <div class="grid-2">
+      <label class="field"><span>Customer</span>
+        <select name="customer_id" required>
+          {% for customer in customers %}
+            <option value="{{ customer.id }}">{{ customer.full_name }} — {{ customer.email }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field"><span>Disbursement account</span>
+        <select name="account_id" required>
+          {% for account in accounts %}
+            <option value="{{ account.id }}">{{ account.customer.full_name }} — {{ format_account(account.account_number) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="grid-2">
+      <label class="field"><span>Amount (USD)</span><input name="amount" type="number" step="100" min="{{ (min_amount / 100)|round(0)|int }}" max="{{ (max_amount / 100)|round(0)|int }}" value="{{ (min_amount / 100)|round(0)|int }}" required></label>
+      <label class="field"><span>Term (months)</span><input name="months" type="number" min="3" max="60" value="24" required></label>
+    </div>
+    <div class="grid-2">
+      <label class="field"><span>Annual rate (bps)</span><input name="rate_bps" type="number" min="0" max="5000" value="{{ default_rate }}"></label>
+      <label class="field"><span>Purpose</span><input name="purpose" placeholder="Optional"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="auto_approve" value="1" checked><span>Approve and disburse immediately</span></label>
+    <button class="btn btn-primary" type="submit">Create loan</button>
+  </form>
+</section>
+
+<section class="panel">
+  <form class="ops-toolbar" method="get" action="/loans">
+    <select name="status">
+      <option value="">Any status</option>
+      {% for option in ['pending', 'active', 'paid_off', 'rejected'] %}
+        <option value="{{ option }}" {{ 'selected' if status == option }}>{{ option|replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline" type="submit">Filter</button>
+    <span class="spacer"></span>
+    <span class="hint">Page {{ page }} / {{ pages }}</span>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>#</th><th>Customer</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Term</th><th>Rate</th><th class="right">Monthly</th><th>Status</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for loan in loans %}
+          <tr>
+            <td>{{ loan.id }}</td>
+            <td><a class="link" href="/customers/{{ loan.customer_id }}">{{ loan.customer.full_name }}</a><br><small>{{ loan.purpose or '—' }}</small></td>
+            <td class="right">{{ format_money(loan.principal_cents, 'USD') }}</td>
+            <td class="right">{{ format_money(loan.outstanding_cents, 'USD') }}</td>
+            <td>{{ loan.term_months }}m</td>
+            <td>{{ (loan.annual_rate_bps / 100)|round(2) }}%</td>
+            <td class="right">{{ format_money(loan.monthly_payment_cents, 'USD') }}</td>
+            <td><span class="badge badge-{{ 'ok' if loan.status == 'active' else ('warn' if loan.status == 'pending' else 'muted') }}">{{ loan.status|replace('_', ' ') }}</span></td>
+            <td class="right">
+              {% if loan.status == 'pending' %}
+                <form method="post" action="/loans/{{ loan.id }}/approve" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                  <button class="btn btn-success btn-sm" type="submit">Approve</button>
+                </form>
+                <form method="post" action="/loans/{{ loan.id }}/reject" class="inline-form" data-confirm-submit="Reject loan #{{ loan.id }}?">
+                  <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+                  <button class="btn btn-ghost btn-sm danger" type="submit">Reject</button>
+                </form>
+              {% else %}
+                <span class="hint">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="empty-row">No loans match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}&status={{ status }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="?page={{ page + 1 }}&status={{ status }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

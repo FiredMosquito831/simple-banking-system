@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block page_title %}Account {{ format_account(account.account_number) }}{% endblock %}
+{% block page_subtitle %} {{ account.label }} · {{ account.type }} · {{ account.currency }}{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-ghost" href="/accounts">← Accounts</a>
+  <a class="btn btn-outline" href="/customers/{{ account.customer_id }}">{{ icon("users", 18) }} Owner</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Balance</span><span class="stat-value">{{ format_money(account.balance_cents, account.currency) }}</span></div>
+  <div class="stat"><span class="stat-label">Overdraft</span><span class="stat-value">{{ format_money(account.overdraft_limit_cents, account.currency) }}</span></div>
+  <div class="stat"><span class="stat-label">Status</span><span class="stat-value"><span class="badge badge-{{ 'ok' if account.status == 'active' else ('warn' if account.status == 'frozen' else 'muted') }}">{{ account.status }}</span></span></div>
+  <div class="stat"><span class="stat-label">Owner</span><span class="stat-value" style="font-size:15px">{{ account.customer.full_name }}</span></div>
+  <div class="stat"><span class="stat-label">Opened</span><span class="stat-value" style="font-size:15px">{{ format_date(account.opened_at) }}</span></div>
+</div>
+
+<div class="detail-grid">
+  <section class="panel">
+    <div class="section-head"><h2>Ledger entries</h2><span class="pill">latest 50</span></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>When</th><th>Transaction</th><th class="right">Amount</th><th class="right">Balance after</th></tr></thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td class="nowrap">{{ format_datetime(entry.created_at) }}</td>
+              <td class="mono small-text">{{ entry.transaction.reference if entry.transaction else entry.transaction_id }}</td>
+              <td class="right {{ 'amount-in' if entry.amount_cents > 0 else 'amount-out' }}">{{ format_money(entry.amount_cents, account.currency, signed=True) }}</td>
+              <td class="right">{{ format_money(entry.balance_after_cents, account.currency) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="empty-row">No ledger entries yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ops-divider"></div>
+    <h3 class="section-title">Cards on this account</h3>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Card</th><th class="right">Daily limit</th><th class="right">Spent today</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for card in cards %}
+            <tr>
+              <td class="mono">•••• {{ card.last4 }}</td>
+              <td class="right">{{ format_money(card.daily_limit_cents, account.currency) }}</td>
+              <td class="right">{{ format_money(card.spent_today_cents, account.currency) }}</td>
+              <td><span class="badge badge-{{ 'ok' if card.status == 'active' else 'warn' }}">{{ card.status }}</span></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="empty-row">No cards issued on this account.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <h2 class="panel-title">Account status</h2>
+      <div class="inline-forms">
+        <form method="post" action="/accounts/{{ account.id }}/status">
+          <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+          <input type="hidden" name="action" value="{{ 'activate' if account.status != 'active' else 'freeze' }}">
+          <button class="btn {{ 'btn-success' if account.status != 'active' else 'btn-outline' }} btn-sm" type="submit">
+            {{ 'Activate' if account.status != 'active' else 'Freeze' }}
+          </button>
+        </form>
+        {% if account.status != 'closed' %}
+          <form method="post" action="/accounts/{{ account.id }}/status" data-confirm-submit="Close this account? The balance must be zero.">
+            <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+            <input type="hidden" name="action" value="close">
+            <button class="btn btn-ghost btn-sm danger" type="submit">Close account</button>
+          </form>
+        {% endif %}
+      </div>
+      <p class="hint">Frozen accounts reject transfers, deposits, withdrawals and card payments immediately.</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Manual adjustment</h2>
+      <form method="post" action="/accounts/{{ account.id }}/adjust" class="form compact" data-confirm-submit="Post this balance adjustment?">
+        <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">
+        <label class="field"><span>Direction</span>
+          <select name="direction"><option value="credit">Credit (add funds)</option><option value="debit">Debit (remove funds)</option></select>
+        </label>
+        <label class="field"><span>Amount ({{ account.currency }})</span><input name="amount" type="number" step="0.01" min="0.01" required></label>
+        <label class="field"><span>Reason</span><input name="reason" placeholder="e.g. chargeback correction" required></label>
+        <button class="btn btn-primary btn-block" type="submit">Post adjustment</button>
+      </form>
+      <p class="hint">Posted as an <code>adjustment</code> ledger transaction, visible to the customer and the audit trail.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

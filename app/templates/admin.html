@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block page_title %}Admin console{% endblock %}
-{% block page_subtitle %}Operations overview for Danube Bank.{% endblock %}
+{% block page_subtitle %}Operations overview for {{ bank_name }}.{% endblock %}
 {% block page_actions %}
   <form method="post" action="/admin/run-jobs" data-confirm-submit="Run interest accrual, overdue checks and scheduled transfers?">
     <input type="hidden" name="csrf" value="{{ request.session.get('csrf', '') }}">

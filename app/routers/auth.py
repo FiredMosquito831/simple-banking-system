@@ -15,6 +15,7 @@ from ..deps import current_user, render, verify_csrf
 from ..models import Customer, KycStatus, Role
 from ..security import hash_secret, verify_secret
 from ..services.banking import audit, create_account, notify
+from ..services import settings as rules
 from ..utils import flash
 
 router = APIRouter()
@@ -29,11 +30,26 @@ def index(request: Request):
     return RedirectResponse("/login", status_code=303)
 
 
+def _login_context(db: Session, request: Request, email: str = "") -> dict:
+    demo_users = []
+    show_demo = rules.get_bool(db, "ui.show_demo_logins", True)
+    if show_demo:
+        demo_users = db.scalars(
+            select(Customer).where(Customer.email.like("%@danube.demo")).order_by(Customer.role.desc(), Customer.email)
+        ).all()
+    return {
+        "title": "Sign in",
+        "email": email,
+        "demo_users": demo_users,
+        "demo_password": settings.demo_password if show_demo else "",
+    }
+
+
 @router.get("/login")
-def login_page(request: Request):
+def login_page(request: Request, db: Session = Depends(get_db)):
     if request.session.get("customer_id"):
         return RedirectResponse("/dashboard", status_code=303)
-    return render(request, "login.html", title="Sign in", demo_password=settings.demo_password)
+    return render(request, "login.html", **_login_context(db, request))
 
 
 @router.post("/login")
@@ -48,17 +64,17 @@ def login(
     attempts = request.session.get("login_attempts", 0)
     if attempts >= 8:
         flash(request, "error", "Too many failed attempts. Please wait a moment and try again.")
-        return render(request, "login.html", title="Sign in", email=email, demo_password=settings.demo_password)
+        return render(request, "login.html", **_login_context(db, request, email))
 
     customer = db.scalar(select(Customer).where(Customer.email == email))
     if not customer or not verify_secret(password, customer.password_hash):
         request.session["login_attempts"] = attempts + 1
         flash(request, "error", "That email and password combination doesn't match our records.")
-        return render(request, "login.html", title="Sign in", email=email, demo_password=settings.demo_password)
+        return render(request, "login.html", **_login_context(db, request, email))
 
     if customer.status == "locked":
         flash(request, "error", "This account is locked. Please contact support.")
-        return render(request, "login.html", title="Sign in", email=email, demo_password=settings.demo_password)
+        return render(request, "login.html", **_login_context(db, request, email))
 
     request.session.pop("login_attempts", None)
     request.session["customer_id"] = customer.id
@@ -135,10 +151,11 @@ def register(
     db.add(customer)
     db.flush()
 
-    create_account(db, customer, "checking", "Everyday checking", opening_cents=50_000,
-                   overdraft_cents=settings.checking_overdraft_limit_cents)
+    create_account(db, customer, "checking", "Everyday checking",
+                   opening_cents=rules.get_int(db, "accounts.opening_credit_cents", 50_000),
+                   overdraft_cents=rules.get_int(db, "accounts.checking_overdraft_cents", 50_000))
     create_account(db, customer, "savings", "Savings", opening_cents=0,
-                   interest_bps=settings.savings_interest_bps)
+                   interest_bps=rules.get_int(db, "accounts.savings_interest_bps", 350))
     notify(db, customer.id, "Welcome to Danube Bank", "We added a $500 opening credit to your checking account. "
                                                      "Complete KYC to unlock higher limits.")
     audit(db, customer, "customer.register", "customer", customer.id,

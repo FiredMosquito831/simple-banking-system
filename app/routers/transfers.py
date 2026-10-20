@@ -11,22 +11,22 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import current_user, owned_account, render, verify_csrf
 from ..models import (
-    Account,
     AccountStatus,
     Beneficiary,
     Frequency,
     ScheduledStatus,
     ScheduledTransfer,
 )
+from ..services import settings as rules
 from ..services.banking import BankingError, get_account_by_number, transfer
 from ..utils import flash
 
 router = APIRouter()
 
 
-def _parse_amount(raw: str) -> int:
+def _parse_amount(raw: str, max_cents: int) -> int:
     cents = int(round(float(raw.replace(",", "").replace("$", "")) * 100))
-    if not 1 <= cents <= 10_000_000:
+    if not 1 <= cents <= max_cents:
         raise ValueError("amount out of range")
     return cents
 
@@ -68,7 +68,7 @@ def do_transfer(
     clean_to = to_account_number.replace(" ", "").strip().upper()
 
     try:
-        cents = _parse_amount(amount)
+        cents = _parse_amount(amount, rules.get_int(db, "money.max_transfer_cents", 10_000_000))
     except (ValueError, TypeError):
         flash(request, "error", "Enter a valid amount between 0.01 and 100,000.")
         return RedirectResponse("/transfer", status_code=303)
@@ -116,7 +116,7 @@ def do_transfer(
 
 @router.get("/receipt/{reference}")
 def receipt(reference: str, request: Request, user=Depends(current_user), db: Session = Depends(get_db)):
-    from ..models import LedgerEntry, Transaction
+    from ..models import Transaction
 
     tx = db.scalar(select(Transaction).where(Transaction.reference == reference))
     if not tx:
@@ -217,7 +217,7 @@ def create_scheduled(
     clean = to_account_number.replace(" ", "").strip().upper()
     target = get_account_by_number(db, clean)
     try:
-        cents = _parse_amount(amount)
+        cents = _parse_amount(amount, rules.get_int(db, "money.max_transfer_cents", 10_000_000))
     except (ValueError, TypeError):
         flash(request, "error", "Enter a valid amount.")
         return RedirectResponse("/scheduled", status_code=303)

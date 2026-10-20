@@ -129,7 +129,7 @@
       {% if cards %}
         {% set card = cards[0] %}
         <div class="mini-card {{ 'frozen' if card.status == 'frozen' }}">
-          <div class="mini-card-top"><span>Danube Debit</span><span>VISA</span></div>
+          <div class="mini-card-top"><span>{{ bank_name }} Debit</span><span>VISA</span></div>
           <p class="mini-card-number">{{ card.masked }}</p>
           <div class="mini-card-foot"><span>{{ user.full_name }}</span><span>{{ card.expiry }}</span></div>
         </div>

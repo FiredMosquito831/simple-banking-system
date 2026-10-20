@@ -85,13 +85,22 @@ def spark_area(values: list[int], width: int = 600, height: int = 150, pad: int 
 
 def template_ctx(request: Request, **extra: Any) -> dict[str, Any]:
     from .models import Customer
+    from .services import settings as rules
 
     user: Customer | None = getattr(request.state, "user", None)
+    bank_name = rules.cached("bank.name", "Danube Bank")
+    bank_lead, _, bank_tail = bank_name.rpartition(" ")
+    if not bank_lead:
+        bank_lead, bank_tail = bank_name, ""
     return {
         "request": request,
         "user": user,
         "unread": getattr(request.state, "unread", 0),
         "flashes": pop_flashes(request),
+        "bank_name": bank_name,
+        "bank_lead": bank_lead,
+        "bank_tail": bank_tail,
+        "bank_support_email": rules.cached("bank.support_email", ""),
         "format_money": money,
         "format_date": fmt_date,
         "format_datetime": fmt_datetime,
